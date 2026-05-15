@@ -1,0 +1,304 @@
+{
+  "plugins": {
+    "wp-file-manager": [
+      {
+        "title": "Unauthenticated PHP File Upload via elFinder connector",
+        "cve": "CVE-2020-25213",
+        "fixed_in": "6.9",
+        "severity": "critical",
+        "upload_method": "elfinder",
+        "upload_endpoint": "/wp-content/plugins/wp-file-manager/lib/php/connector.minimal.php",
+        "shell_dir": "/wp-content/plugins/wp-file-manager/lib/files/"
+      }
+    ],
+    "revslider": [
+      {
+        "title": "Unauthenticated Arbitrary File Upload via Slider Revolution ZIP import",
+        "cve": "CVE-2014-9734",
+        "fixed_in": "4.2",
+        "severity": "critical",
+        "upload_method": "revslider_import",
+        "upload_endpoint": "/wp-admin/admin-ajax.php",
+        "shell_dir": "/wp-content/uploads/revslider/assets/images/"
+      }
+    ],
+    "modern-events-calendar-lite": [
+      {
+        "title": "Unauthenticated Arbitrary File Upload via ICS import endpoint",
+        "cve": "CVE-2021-24145",
+        "fixed_in": "5.16.5",
+        "severity": "critical",
+        "upload_method": "mec_import",
+        "upload_endpoint": "/wp-admin/admin-ajax.php",
+        "shell_dir": "/wp-content/uploads/mec-ics-files/"
+      }
+    ],
+    "drag-and-drop-multiple-file-upload-contact-form-7": [
+      {
+        "title": "Unauthenticated .phar Shell Upload via DnD CF7 file upload addon",
+        "cve": "CVE-2025-14842",
+        "fixed_in": "1.3.9.2",
+        "severity": "critical",
+        "upload_method": "dnd_cf7_upload",
+        "upload_endpoint": "/wp-admin/admin-ajax.php",
+        "shell_dir": "/wp-content/uploads/dnd-cf7-upload/"
+      }
+    ],
+    "contact-form-7": [
+      {
+        "title": "Unrestricted PHP File Upload via CF7 form attachment",
+        "cve": "CVE-2020-35489",
+        "fixed_in": "5.3.2",
+        "severity": "critical",
+        "upload_method": "cf7",
+        "upload_endpoint": "/wp-admin/admin-ajax.php",
+        "shell_dir": "/wp-content/uploads/",
+        "notes": "Requires a CF7 form with a file upload field configured and PHP extensions not blocked. ~5M installs."
+      }
+    ],
+    "forminator": [
+      {
+        "title": "Unauthenticated Arbitrary File Upload via form submission",
+        "cve": "CVE-2024-28890",
+        "fixed_in": "1.29.3",
+        "severity": "critical",
+        "upload_method": "forminator",
+        "upload_endpoint": "/wp-admin/admin-ajax.php",
+        "shell_dir": "/wp-content/uploads/forminator/",
+        "notes": "Requires a Forminator form with file upload field. ~500K installs."
+      }
+    ],
+    "profilepress": [
+      {
+        "title": "Unauthenticated Arbitrary File Upload via user registration avatar",
+        "cve": "CVE-2021-34621",
+        "fixed_in": "3.1.4",
+        "severity": "critical",
+        "upload_method": "profilepress",
+        "upload_endpoint": "/",
+        "shell_dir": "/wp-content/uploads/",
+        "notes": "Requires user registration enabled. ~100K installs."
+      }
+    ],
+    "backup-migration": [
+      {
+        "title": "Unauthenticated RCE via PHP file inclusion through BMPath header",
+        "cve": "CVE-2023-6553",
+        "fixed_in": "1.3.8",
+        "severity": "critical",
+        "upload_method": "backup_migration",
+        "upload_endpoint": "/wp-content/plugins/backup-migration/includes/header.php",
+        "shell_dir": "/wp-content/uploads/",
+        "notes": "Single POST with BMPath header. ~90K installs. INSTANT \u2014 no prerequisites."
+      }
+    ],
+    "wp-automatic": [
+      {
+        "title": "SQL Injection leading to unauthenticated arbitrary file write",
+        "cve": "CVE-2024-27956",
+        "fixed_in": "3.92.1",
+        "severity": "critical",
+        "upload_method": "wp_automatic",
+        "upload_endpoint": "/wp-content/plugins/wp-automatic/inc/csv.php",
+        "shell_dir": "/wp-content/uploads/",
+        "notes": "SQL OUTFILE via csv.php. Must guess webroot path. Premium plugin."
+      }
+    ],
+    "ultimate-member": [
+      {
+        "title": "Unauthenticated Privilege Escalation via registration meta injection",
+        "cve": "CVE-2023-3460",
+        "fixed_in": "2.6.7",
+        "severity": "critical",
+        "upload_method": "ultimate_member",
+        "upload_endpoint": "/wp-admin/admin-ajax.php",
+        "shell_dir": "/wp-content/uploads/",
+        "notes": "Multi-step: register admin account then upload. ~200K installs."
+      }
+    ],
+    "bit-file-manager": [
+      {
+        "title": "Unauthenticated Arbitrary File Write via file manager interface",
+        "cve": "CVE-2024-7627",
+        "fixed_in": "6.4.8",
+        "severity": "critical",
+        "upload_method": "bit_file_manager",
+        "upload_endpoint": "/wp-content/plugins/bit-file-manager/views/application.php",
+        "shell_dir": "/wp-content/uploads/",
+        "notes": "Single POST to write endpoint. ~80K installs. INSTANT \u2014 no prerequisites."
+      }
+    ],
+    "wp-file-upload": [
+      {
+        "title": "Unauthenticated Path Traversal Arbitrary File Upload",
+        "cve": "CVE-2024-9047",
+        "fixed_in": "4.24.12",
+        "severity": "critical",
+        "upload_method": "wfu_upload",
+        "upload_endpoint": "/wp-admin/admin-ajax.php",
+        "shell_dir": "/wp-content/uploads/",
+        "notes": "Needs nonce from a page containing the upload widget."
+      }
+    ],
+    "really-simple-ssl": [
+      {
+        "title": "Authentication Bypass leading to admin file upload",
+        "cve": "CVE-2024-10924",
+        "fixed_in": "9.1.2",
+        "severity": "critical",
+        "upload_method": "really_simple_security",
+        "upload_endpoint": "/wp-admin/async-upload.php",
+        "shell_dir": "/wp-content/uploads/",
+        "notes": "Requires 2FA feature enabled on the site. ~5M installs but 2FA rate is low."
+      }
+    ],
+    "ninja-forms": [
+      {
+        "title": "Unauthenticated Arbitrary File Upload via Ninja Forms file field",
+        "cve": "CVE-2024-5764",
+        "fixed_in": "3.8.1",
+        "severity": "critical",
+        "upload_method": "ninja_forms",
+        "upload_endpoint": "/wp-admin/admin-ajax.php",
+        "shell_dir": "/wp-content/uploads/ninja-forms/",
+        "notes": "Requires a form with file upload field. ~800K installs."
+      }
+    ],
+    "wpforms-lite": [
+      {
+        "title": "Unauthenticated Arbitrary File Upload via WPForms file field",
+        "cve": "CVE-2024-10124",
+        "fixed_in": "1.9.1",
+        "severity": "critical",
+        "upload_method": "wpforms",
+        "upload_endpoint": "/wp-admin/admin-ajax.php",
+        "shell_dir": "/wp-content/uploads/wpforms/",
+        "notes": "Requires form with file upload field + field ID extracted from page. ~6M installs."
+      }
+    ],
+    "essential-addons-for-elementor-lite": [
+      {
+        "title": "Unauthenticated Password Reset Bypass leading to admin file upload",
+        "cve": "CVE-2023-32243",
+        "fixed_in": "5.7.2",
+        "severity": "critical",
+        "upload_method": "essential_addons",
+        "upload_endpoint": "/wp-admin/admin-ajax.php",
+        "shell_dir": "/wp-content/uploads/",
+        "notes": "Multi-step: reset admin password then login + theme editor. ~1M installs."
+      }
+    ],
+    "themegrill-demo-importer": [
+      {
+        "title": "Unauthenticated Database Reset leading to default admin account creation",
+        "cve": "CVE-2020-8772",
+        "fixed_in": "1.6.3",
+        "severity": "critical",
+        "upload_method": "themegrill_reset",
+        "upload_endpoint": "/wp-admin/admin-ajax.php",
+        "shell_dir": "/wp-content/uploads/",
+        "notes": "WARNING: DESTRUCTIVE \u2014 resets entire database. Avoid on production sites."
+      }
+    ],
+    "hunk-companion": [
+      {
+        "title": "Unauthenticated Arbitrary Plugin Installation via REST API",
+        "cve": "CVE-2024-11972",
+        "fixed_in": "1.9.1",
+        "severity": "critical",
+        "upload_method": "hunk_companion",
+        "upload_endpoint": "/wp-json/hunk-companion/v1/install",
+        "shell_dir": "/wp-content/plugins/",
+        "check_only": true,
+        "notes": "Installs plugins from WP.org only \u2014 cannot install arbitrary PHP. Version detect only. ~20K installs."
+      }
+    ],
+    "startklar-elemenor-addons": [
+      {
+        "title": "Unauthenticated Arbitrary File Upload via Drag & Drop form handler",
+        "cve": "CVE-2025-1772",
+        "fixed_in": "1.7.16",
+        "severity": "critical",
+        "upload_method": "startklar",
+        "upload_endpoint": "/wp-admin/admin-ajax.php",
+        "shell_dir": "/wp-content/uploads/",
+        "notes": "INSTANT \u2014 single POST. Small install base ~20K."
+      }
+    ],
+    "simple-wp-events": [
+      {
+        "title": "Unauthenticated Arbitrary File Upload via event import endpoint",
+        "cve": "CVE-2025-2004",
+        "fixed_in": "1.8.10",
+        "severity": "critical",
+        "upload_method": "simple_wp_events",
+        "upload_endpoint": "/wp-admin/admin-ajax.php",
+        "shell_dir": "/wp-content/uploads/swe-import/",
+        "notes": "INSTANT \u2014 single POST. Tiny install base ~5K."
+      }
+    ],
+    "give": [
+      {
+        "title": "Unauthenticated PHP Object Injection leading to Arbitrary File Write",
+        "cve": "CVE-2025-22777",
+        "fixed_in": "3.18.2",
+        "severity": "critical",
+        "upload_method": "givewp_injection",
+        "upload_endpoint": "/wp-admin/admin-ajax.php",
+        "shell_dir": "/wp-content/uploads/",
+        "check_only": true,
+        "notes": "PHP object injection \u2014 POP chain not yet automated. Version detect only."
+      }
+    ],
+    "jupiterx-core": [
+      {
+        "title": "Unauthenticated Subscriber Registration + Arbitrary File Upload",
+        "cve": "CVE-2025-0316",
+        "fixed_in": "4.8.8",
+        "severity": "critical",
+        "upload_method": "jupiterx_upload",
+        "upload_endpoint": "/wp-admin/admin-ajax.php",
+        "shell_dir": "/wp-content/uploads/",
+        "notes": "Multi-step: register subscriber then use role-bypass upload. ~100K installs."
+      }
+    ],
+    "litespeed-cache": [
+      {
+        "title": "Unauthenticated Privilege Escalation via crawler hash brute-force",
+        "cve": "CVE-2024-28000",
+        "fixed_in": "6.4",
+        "severity": "critical",
+        "upload_method": "litespeed_cache",
+        "upload_endpoint": "/wp-admin/admin-ajax.php",
+        "shell_dir": "/wp-content/uploads/",
+        "notes": "Hash brute-force (0-999999) \u2192 admin session \u2192 theme editor. ~6M installs but slow exploit."
+      }
+    ],
+    "all-in-one-wp-migration": [
+      {
+        "title": "Subscriber+ SSRF via import URL",
+        "cve": "CVE-2023-40004",
+        "fixed_in": "7.86",
+        "severity": "critical",
+        "upload_method": "aiowpm_import",
+        "upload_endpoint": "/wp-admin/admin-ajax.php",
+        "shell_dir": "/wp-content/uploads/",
+        "check_only": true,
+        "notes": "SSRF \u2014 not a PHP file write path. Version detect only. ~5M installs."
+      }
+    ],
+    "elementor": [
+      {
+        "title": "Authenticated arbitrary plugin installation via CSRF",
+        "cve": "CVE-2022-1329",
+        "fixed_in": "3.6.3",
+        "severity": "critical",
+        "upload_method": "elementor_upload",
+        "upload_endpoint": "/wp-admin/admin-ajax.php",
+        "shell_dir": "/wp-content/uploads/elementor/tmp/",
+        "check_only": true,
+        "notes": "CSRF + authenticated \u2014 not a direct PHP upload path. Version detect only. ~10M installs."
+      }
+    ]
+  }
+}

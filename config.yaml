@@ -1,0 +1,187 @@
+# EnvHarvester – Defensive .env probe configuration
+
+# Paths probed on every target (both https:// and http://)
+laravel_env_paths:
+  - /.env
+  - /.env.bak
+  - /.env.backup
+  - /.env.old
+  - /.env.save
+  - /.env.1
+  - /.env.orig
+  - /.env.local
+  - /.env.production
+  - /.env.staging
+  - /.env.development
+  - /.env.dev
+  - /.env.prod
+  - /.env.test
+  - /.env.testing
+  - /.env.sample
+  - /.env.example
+  - /.envrc
+  - /public/.env
+  - /storage/.env
+  - /laravel/.env
+  - /api/.env
+  - /backend/.env
+  - /web/.env
+  - /www/.env
+  - /admin/.env
+  - /app/.env
+  - /src/.env
+  - /config/.env
+  # additional vim/editor swap files & developer copies
+  - /.env~
+  - /.env.swp
+  - /.env.copy
+  - /.env.docker
+  - /.env.vault
+  - /.env.dist
+  - /.env.shared
+  - /.env.live
+  # nested deployment paths
+  - /private/.env
+  - /server/.env
+  - /var/.env
+  - /var/www/.env
+  - /symfony/.env
+  - /symfony2/web/.env
+  # adjacent leak file — Laravel log can contain SMTP creds in stack traces
+  - /storage/logs/laravel.log
+  # Git repository exposure — can contain embedded tokens in remote URLs
+  - /.git/HEAD
+  - /.git/config
+  # WordPress configuration — contains DB credentials and auth keys
+  - /wp-config.php
+  - /wp-config.php.bak
+  - /wp-config.php~
+  - /wp-config.php.old
+  # Rails database configuration
+  - /database.yml
+  - /config/database.yml
+  # Django settings
+  - /settings.py
+  # .NET / ASP.NET Core app settings
+  - /appsettings.json
+  # Generic PHP config files
+  - /config.php
+  - /configuration.php
+  # Symfony parameters
+  - /app/config/parameters.yml
+
+# WordPress-specific discovery queries (used when scan_mode=wordpress)
+wordpress_shodan_queries:
+  - "http.component:wordpress"
+  - 'http.title:"WordPress"'
+  - 'http.html:"wp-content"'
+  - 'http.html:"wp-login.php"'
+
+wordpress_censys_queries:
+  - 'services.http.response.html_title: "WordPress"'
+  - 'services.http.response.body: "wp-content"'
+  - 'services.http.response.body: "wp-login.php"'
+
+wordpress_netlas_queries:
+  - 'http.body:"wp-content"'
+  - 'http.body:"wp-login.php"'
+  - 'http.title:"WordPress"'
+  - 'http.body:"xmlrpc.php"'
+
+# URLScan.io queries (WordPress mode)
+# Free tier (no API key): only page.url: and page.domain: fields work without auth.
+# page.body: and page.tech: both require an API key — those queries are skipped
+# automatically if no key is configured (harvester prints a warning).
+# With an API key, uncomment the page.tech / page.body lines for higher coverage.
+wordpress_urlscan_queries:
+  # Free (no key required) — sorted by date:desc so each run returns fresh hosts
+  - "page.url:wp-login.php"
+  - "page.url:wp-admin"
+  - "page.url:xmlrpc.php"
+  - "page.url:wp-content"
+  - "page.url:wp-json"
+  - "page.url:wp-includes"
+  - "page.domain:*.wordpress.com"
+  - "page.url:wp-content/plugins/wp-file-manager"
+  - "page.url:wp-content/plugins/revslider"
+  - "page.url:wp-content/plugins/modern-events-calendar-lite"
+  - "page.url:wp-content/plugins/drag-and-drop-multiple-file-upload-contact-form-7"
+  - "page.url:wp-content/plugins/profilepress"
+  - "page.url:wp-content/plugins/backup-migration"
+  - "page.url:wp-content/plugins/wp-automatic"
+  - "page.url:wp-content/plugins/ultimate-member"
+  - "page.url:wp-content/plugins/bit-file-manager"
+  - "page.url:wp-content/plugins/really-simple-ssl"
+  - "page.url:wp-content/plugins/ninja-forms"
+  - "page.url:wp-content/plugins/wpforms-lite"
+  - "page.url:wp-content/plugins/litespeed-cache"
+  # Require API key — skipped silently without one
+  - "page.tech:WordPress"
+  - "page.body:wp-content/plugins/wp-file-manager"
+  - "page.body:wp-content/plugins/revslider"
+  - "page.body:wp-content/plugins/contact-form-7"
+
+# Optional: hard-code targets here if not using the UI textarea
+# laravel_targets:
+#   - example.com
+#   - 192.168.1.100
+
+# Shodan queries used when a Shodan API key is provided.
+# Multiple fingerprint-based queries to capture more Laravel hosts than
+# the narrow `app:laravel` tag (which only matches Shodan's curated set).
+# Each query costs 1 query credit; free plan returns up to 100 results per
+# query (~600 hosts total here, deduped automatically).
+shodan_queries:
+  - "app:laravel"
+  - 'http.title:"Laravel"'
+  - 'http.html:"csrf-token"'
+  - 'http.html:"laravel_session"'
+  - 'http.html:"_token"'
+  - 'http.component:"Laravel"'
+
+# Censys queries used when Censys API ID + secret are provided.
+censys_queries:
+  - "services.software.product: laravel"
+  - 'services.http.response.body: "laravel_session"'
+  - 'services.http.response.headers.set_cookie: "laravel_session"'
+  - 'services.http.response.headers.set_cookie: "XSRF-TOKEN"'
+
+# Netlas queries used when a Netlas API key is provided.
+# Netlas has a free tier (register at app.netlas.io — no credit card).
+# When the scan targets include CIDRs or ASNs, each query is automatically
+# scoped with AND ip:CIDR so results come from your target range, not globally.
+# Note: http.headers field names vary by Netlas plan; body-based queries are
+# more reliable and match cookie values embedded in JS/HTML responses.
+netlas_queries:
+  - 'http.body:"laravel_session"'
+  - 'http.body:"XSRF-TOKEN"'
+  - 'http.body:"_token" AND http.body:"laravel"'
+  - 'http.body:"csrf-token" AND http.body:"laravel"'
+  - 'http.title:"Laravel"'
+  - 'http.body:"Illuminate\\"'
+
+# Backlink injection settings (scan_mode=backlink)
+backlink:
+  url: ""
+  inject_canonical: true
+  daily_rate_cap: 200
+  anchor_weights: [40, 40, 20]   # % split: branded / generic / exact-match
+  anchors:
+    branded: []
+    generic:
+      - "click here"
+      - "this tool"
+      - "free tool"
+      - "try it"
+    exact: []
+  context_sentences:
+    - "Check out this {link}."
+    - "Learn more with this {link}."
+    - "Try this {link}."
+  relevance_keywords:
+    - "software"
+    - "tool"
+    - "download"
+    - "free"
+    - "app"
+    - "tech"

